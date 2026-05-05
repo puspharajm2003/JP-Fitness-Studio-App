@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Default Sunrise palette — overridden at runtime by ThemeProvider */
+    --background: 30 60% 98%;
+    --foreground: 240 25% 18%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 25% 18%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 25% 18%;
+    --primary: 18 95% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 30 60% 95%;
+    --secondary-foreground: 240 25% 18%;
+    --muted: 30 30% 94%;
+    --muted-foreground: 240 10% 45%;
+    --accent: 335 85% 60%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 30 40% 88%;
+    --input: 30 40% 92%;
+    --ring: 18 95% 58%;
+
+    --brand-1: 18 95% 58%;
+    --brand-2: 335 85% 60%;
+    --brand-3: 42 100% 60%;
+    --surface-tint: 30 80% 96%;
+
+    --radius: 1rem;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 240 25% 18%;
+    --sidebar-primary: 18 95% 58%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 30 60% 95%;
+    --sidebar-accent-foreground: 240 25% 18%;
+    --sidebar-border: 30 40% 88%;
+    --sidebar-ring: 18 95% 58%;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  html, body, #root { height: 100%; }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+    background-image:
+      radial-gradient(900px 500px at 100% -10%, hsl(var(--brand-2) / 0.18), transparent 60%),
+      radial-gradient(700px 400px at -10% 110%, hsl(var(--brand-1) / 0.18), transparent 60%),
+      radial-gradient(500px 300px at 50% 50%, hsl(var(--brand-3) / 0.06), transparent 70%);
+    background-attachment: fixed;
+  }
+
+  ::selection { background: hsl(var(--primary) / 0.25); color: hsl(var(--foreground)); }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: hsl(var(--primary) / 0.3); border-radius: 999px; }
+  ::-webkit-scrollbar-thumb:hover { background: hsl(var(--primary) / 0.5); }
+}
+
+@layer utilities {
+  .bg-gradient-brand {
+    background: linear-gradient(135deg, hsl(var(--brand-1)), hsl(var(--brand-2)));
+  }
+  .bg-gradient-brand-3 {
+    background: linear-gradient(135deg, hsl(var(--brand-1)), hsl(var(--brand-2)) 50%, hsl(var(--brand-3)));
+  }
+  .bg-gradient-soft {
+    background: linear-gradient(135deg, hsl(var(--brand-1) / 0.12), hsl(var(--brand-2) / 0.12));
+  }
+  .text-gradient-brand {
+    background: linear-gradient(135deg, hsl(var(--brand-1)), hsl(var(--brand-2)));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .shadow-brand { box-shadow: 0 12px 30px -10px hsl(var(--brand-1) / 0.45); }
+  .shadow-soft { box-shadow: 0 6px 24px -8px hsl(var(--foreground) / 0.12); }
+  .glass-card {
+    background: hsl(var(--card) / 0.85);
+    backdrop-filter: blur(14px);
+    border: 1px solid hsl(var(--border));
+    box-shadow: 0 8px 32px -16px hsl(var(--foreground) / 0.18);
+  }
+  .ring-brand { box-shadow: 0 0 0 4px hsl(var(--primary) / 0.18); }
+}
+
+@keyframes pop { 0%{transform:scale(.95);opacity:0} 100%{transform:scale(1);opacity:1} }
+@keyframes float-y { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+.animate-pop { animation: pop .35s cubic-bezier(.2,.9,.3,1.4) both; }
+.animate-float-y { animation: float-y 4s ease-in-out infinite; }
