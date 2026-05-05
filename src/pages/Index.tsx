@@ -10,6 +10,7 @@ import Water from "@/components/jp/sections/Water";
 import ActivityPage from "@/components/jp/sections/ActivityPage";
 import Medications from "@/components/jp/sections/Medications";
 import Rewards from "@/components/jp/sections/Rewards";
+import Notifications from "@/components/jp/sections/Notifications";
 import Profile from "@/components/jp/sections/Profile";
 
 export default function Index() {
@@ -28,6 +29,7 @@ export default function Index() {
         <Route path="/activity" element={<ActivityPage />} />
         <Route path="/medications" element={<Medications />} />
         <Route path="/rewards" element={<Rewards />} />
+        <Route path="/notifications" element={<Notifications />} />
         <Route path="/profile" element={<Profile />} />
       </Routes>
     </Layout>

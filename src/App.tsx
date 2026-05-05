@@ -17,7 +17,7 @@ import AdminAttendance from "./components/jp/sections/AdminAttendance";
 import AdminPayments from "./components/jp/sections/AdminPayments";
 import AdminAnalytics from "./components/jp/sections/AdminAnalytics";
 import AdminSetup from "./components/jp/sections/AdminSetup";
-import Notifications from "./components/jp/sections/Notifications";
+
 
 // Admin route guard
 function AdminRoute({ children }: { children: React.ReactNode }) {
@@ -71,7 +71,7 @@ const App = () => (
           <Route path="/admin/payments" element={<AdminRoute><AdminPayments /></AdminRoute>} />
           <Route path="/admin/analytics" element={<AdminRoute><AdminAnalytics /></AdminRoute>} />
           <Route path="/admin/setup" element={<AdminRoute><AdminSetup /></AdminRoute>} />
-          <Route path="/notifications" element={<Notifications />} />
+
           <Route path="/*" element={<Index />} />
             </Routes>
           </AuthProvider>
