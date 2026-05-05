@@ -160,7 +160,7 @@ JP-Fitness-Studio-App/
 
 ### Vercel (recommended)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://jp-fitness-studio-app.vercel.app/)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/puspharajm2003/JP-Fitness-Studio-App)
 
 1. Fork the repo
 2. Import to Vercel
