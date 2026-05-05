@@ -4,7 +4,7 @@
 
 **A modern, full‑stack fitness tracking application built with React, TypeScript, and Supabase**
 
-[![Live Demo](https://img.shields.io/badge/⚡-Live%20Demo-green?style=for-the-badge)](https://jp-fitness-studio.vercel.app)
+[![Live Demo](https://img.shields.io/badge/⚡-Live%20Demo-green?style=for-the-badge)](https://jp-fitness-studio-app.vercel.app)
 [![GitHub Stars](https://img.shields.io/github/stars/puspharajm2003/JP-Fitness-Studio-App?style=for-the-badge)](https://github.com/puspharajm2003/JP-Fitness-Studio-App)
 [![GitHub Forks](https://img.shields.io/github/forks/puspharajm2003/JP-Fitness-Studio-App?style=for-the-badge)](https://github.com/puspharajm2003/JP-Fitness-Studio-App/fork)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
@@ -160,7 +160,7 @@ JP-Fitness-Studio-App/
 
 ### Vercel (recommended)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/puspharajm2003/JP-Fitness-Studio-App)
+[![Deploy with Vercel](https://vercel.com/button)](https://jp-fitness-studio-app.vercel.app/)
 
 1. Fork the repo
 2. Import to Vercel
@@ -206,7 +206,7 @@ MIT License – see the [LICENSE](LICENSE) file.
 
 ## 👨‍💻 Author
 
-**Pushp Raj** – [GitHub](https://github.com/puspharajm2003) – <puspharaj.m2003@gmail.com>
+**Puspharaj M** – [GitHub](https://github.com/puspharajm2003) – <puspharaj.m2003@gmail.com>
 
 ---
 
