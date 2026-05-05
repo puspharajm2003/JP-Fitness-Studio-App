@@ -115,7 +115,7 @@ export default function AdminCRMAdvanced() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => nav("/admin")}
+            onClick={() => nav(-1)}
             className="mb-4 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
