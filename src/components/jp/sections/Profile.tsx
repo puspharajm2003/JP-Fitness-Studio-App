@@ -91,7 +91,7 @@ export default function Profile() {
   );
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6">
       {/* Header Card */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-500 p-1 shadow-2xl transition-transform duration-500 hover:scale-[1.01]">
         <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-3xl p-6 md:p-8 flex flex-col md:flex-row items-center gap-6">
