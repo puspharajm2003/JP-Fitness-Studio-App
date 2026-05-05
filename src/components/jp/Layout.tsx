@@ -32,8 +32,6 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   // Admin nav items
   const adminNav = isAdmin ? [
-    { to: "/admin", label: "CRM", icon: Shield },
-    { to: "/admin/crm", label: "CRM Pro", icon: BarChart3 },
     { to: "/admin/setup", label: "Admin Setup", icon: Settings },
   ] : [];
 
@@ -44,7 +42,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   ];
 
   // All nav items for sidebar
-  const allNavItems = [...navItems, ...adminNav];
+  const allNavItems = navItems;
 
   return (
     <div className="min-h-screen flex bg-background">

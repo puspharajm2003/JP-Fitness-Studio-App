@@ -54,7 +54,7 @@ export default function Profile() {
         </div>
         <button onClick={coach} className="px-4 py-2 rounded-xl bg-white text-foreground font-semibold flex items-center gap-2"><MessageCircle className="w-4 h-4"/>Coach</button>
 	      {isAdmin && (
-	        <a href="/admin" className="px-4 py-2 rounded-xl bg-white/20 text-foreground font-semibold flex items-center gap-2">
+	        <a href="/admin/crm" className="px-4 py-2 rounded-xl bg-white/20 text-foreground font-semibold flex items-center gap-2">
 	          <Shield className="w-4 h-4" /> Admin Panel
 	        </a>
 	      )}
