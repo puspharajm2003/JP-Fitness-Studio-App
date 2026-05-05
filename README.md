@@ -140,6 +140,30 @@ JP-Fitness-Studio-App/
 
 ---
 
+## 🚀 Deployment
+
+### Vercel (Recommended)
+
+After forking and importing to Vercel, you **must** add your Supabase environment variables **before** the first deployment:
+
+1. In your Vercel project dashboard, go to **Settings → Environment Variables**.
+2. Add the following variables (apply to **Production**, **Preview**, and **Development**):
+   - `VITE_SUPABASE_PROJECT_ID` = your Supabase project ID
+   - `VITE_SUPABASE_PUBLISHABLE_KEY` = your Supabase `anon`/`public` key
+   - `VITE_SUPABASE_URL` = `https://your-project-id.supabase.co`
+3. Trigger a new deployment (or redeploy if already deployed).
+
+If these variables are missing, the site will show a **"Configuration Missing"** message instead of a blank white screen.
+
+### Other Hosts
+
+```bash
+npm run build   # Produces a static `dist/` folder
+# Deploy `dist/` to Netlify, Cloudflare Pages, GitHub Pages, etc.
+```
+
+---
+
 ## 🤝 Contributing
 
 Contributions are welcome! Follow these steps:
