@@ -113,22 +113,6 @@ Visit **`http://localhost:5173`** in your browser.
 
 ---
 
-## 🔐 Environment Setup
-
-1. **Create a Supabase project** at https://app.supabase.com/.
-2. Copy the **Project URL** and **anon/public key** from *Project Settings → API*.
-3. Create a **`.env`** file in the project root:
-
-```env
-VITE_SUPABASE_PROJECT_ID="your-project-id"
-VITE_SUPABASE_PUBLISHABLE_KEY="your-anon-key"
-VITE_SUPABASE_URL="https://your-project-id.supabase.co"
-```
-
-4. **Run the database migrations** in Supabase SQL Editor – copy the SQL from `supabase/migrations/*.sql` in order.
-5. **Super‑admin** – the email `puspharaj.m2003@gmail.com` automatically receives admin privileges.
-
----
 
 ## 📁 Project Structure
 
@@ -152,26 +136,6 @@ JP-Fitness-Studio-App/
 ├─ package.json           # Scripts & dependencies
 ├─ vite.config.ts         # Vite build config
 └─ README.md              # You are reading it!
-```
-
----
-
-## 🚀 Deployment
-
-### Vercel (recommended)
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/puspharajm2003/JP-Fitness-Studio-App)
-
-1. Fork the repo
-2. Import to Vercel
-3. Add the same environment variables you used locally
-4. Deploy – Vercel will handle static hosting and preview URLs automatically.
-
-### Other Hosts
-
-```bash
-npm run build   # Produces a static `dist/` folder
-# Deploy `dist/` to Netlify, Cloudflare Pages, GitHub Pages, etc.
 ```
 
 ---
