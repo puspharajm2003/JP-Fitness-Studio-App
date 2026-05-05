@@ -22,8 +22,6 @@ export const navItems = [
   { to: "/profile", label: "Profile", icon: User },
 ];
 
-const bottomNav = [...navItems.filter(i => ["/", "/attendance", "/workout", "/diet", "/profile"].includes(i.to)), ...adminNav];
-
 export default function Layout({ children }: { children: ReactNode }) {
   const { signOut, user } = useAuth();
   const { isAdmin } = useIsAdmin();
@@ -38,6 +36,15 @@ export default function Layout({ children }: { children: ReactNode }) {
     { to: "/admin/setup", label: "Admin Setup", icon: Settings },
   ] : [];
 
+  // Bottom nav includes main items plus admin items for mobile
+  const bottomNavItems = [
+    ...navItems.filter(i => ["/", "/attendance", "/workout", "/diet", "/profile"].includes(i.to)),
+    ...adminNav,
+  ];
+
+  // All nav items for sidebar
+  const allNavItems = [...navItems, ...adminNav];
+
   return (
     <div className="min-h-screen flex bg-background">
       {/* Sidebar (desktop) */}
@@ -50,7 +57,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           </div>
         </Link>
         <nav className="flex-1 space-y-1">
-          {[...navItems, ...adminNav].map(it => {
+          {allNavItems.map(it => {
             const Icon = it.icon;
             const active = loc.pathname === it.to;
             return (
@@ -120,7 +127,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       {/* Bottom nav (mobile) */}
       <nav className="lg:hidden fixed bottom-3 left-3 right-3 z-40 glass-card rounded-2xl px-2 py-2">
         <div className="flex justify-around items-center">
-          {bottomNav.map(it => {
+          {bottomNavItems.map(it => {
             const Icon = it.icon;
             const active = loc.pathname === it.to;
             return (
