@@ -11,6 +11,7 @@ import Index from "./pages/Index";
 import AuthPage from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import AdminCRM from "./components/jp/sections/AdminCRM";
+import AdminCRMAdvanced from "./components/jp/sections/AdminCRMAdvanced";
 import AdminMembers from "./components/jp/sections/AdminMembers";
 import AdminAttendance from "./components/jp/sections/AdminAttendance";
 import AdminPayments from "./components/jp/sections/AdminPayments";
@@ -64,6 +65,7 @@ const App = () => (
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/404" element={<NotFound />} />
           <Route path="/admin" element={<AdminRoute><AdminCRM /></AdminRoute>} />
+          <Route path="/admin/crm" element={<AdminRoute><AdminCRMAdvanced /></AdminRoute>} />
           <Route path="/admin/members" element={<AdminRoute><AdminMembers /></AdminRoute>} />
           <Route path="/admin/attendance" element={<AdminRoute><AdminAttendance /></AdminRoute>} />
           <Route path="/admin/payments" element={<AdminRoute><AdminPayments /></AdminRoute>} />

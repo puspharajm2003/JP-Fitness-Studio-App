@@ -1,4 +1,4 @@
-import { Bell, LogOut, Palette, Search, Shield, Settings } from "lucide-react";
+import { Bell, LogOut, Palette, Search, Shield, Settings, BarChart3 } from "lucide-react";
 import { ReactNode, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -33,6 +33,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   // Admin nav items
   const adminNav = isAdmin ? [
     { to: "/admin", label: "CRM", icon: Shield },
+    { to: "/admin/crm", label: "CRM Pro", icon: BarChart3 },
     { to: "/admin/setup", label: "Admin Setup", icon: Settings },
   ] : [];
 
