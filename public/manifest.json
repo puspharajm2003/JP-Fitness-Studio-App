@@ -1,0 +1,20 @@
+{
+  "name": "JP Fitness Studio",
+  "short_name": "JP Fitness",
+  "description": "Track attendance, workouts, diet, hydration, and loyalty rewards — all in one app.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "categories": ["health", "fitness", "lifestyle"],
+  "icons": [
+    {
+      "src": "/jp-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
