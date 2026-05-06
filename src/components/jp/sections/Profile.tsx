@@ -1,24 +1,49 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useProfile } from "@/lib/useProfile";
 import { useAuth } from "@/providers/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { useTheme, themes } from "@/providers/ThemeProvider";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
-import { Calendar, LogOut, MessageCircle, Save, Sparkles, User as UserIcon, Shield, Pencil, Check } from "lucide-react";
+import { Calendar, LogOut, MessageCircle, Save, Sparkles, User as UserIcon, Shield, Pencil, Check, Camera, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function Profile() {
   const [editMode, setEditMode] = useState(false);
-  const { profile, update } = useProfile();
+  const { profile, update, refresh } = useProfile();
   const { signOut, user } = useAuth();
   const { isAdmin } = useIsAdmin();
   const { themeId, setTheme } = useTheme();
   const [pkg, setPkg] = useState<any>(null);
+  const [latestWeight, setLatestWeight] = useState<number | null>(null);
   const [f, setF] = useState<any>({});
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { if (profile) setF(profile); }, [profile]);
+  const fetchLatestWeight = async () => {
+    if (!user) return;
+    const { data } = await supabase.from("weight_logs")
+      .select("weight_kg")
+      .eq("user_id", user.id)
+      .order("date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (data) {
+      setLatestWeight(data.weight_kg);
+      setF((prev: any) => ({ ...prev, current_weight: data.weight_kg }));
+    }
+  };
+
+  useEffect(() => { 
+    if (profile) {
+      setF(prev => ({ ...prev, ...profile }));
+    }
+  }, [profile]);
+
+  useEffect(() => {
+    fetchLatestWeight();
+  }, [user]);
 
   useEffect(() => {
     (async () => {
@@ -34,23 +59,86 @@ export default function Profile() {
     })();
   }, [user]);
 
+  const uploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    // Validate file
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be under 5MB");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `${user.id}/avatar-${Date.now()}.${ext}`;
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(path, file, { upsert: true });
+
+      if (uploadError) {
+        // If bucket doesn't exist, try diet-plans bucket as fallback
+        const fallbackPath = `avatars/${user.id}-${Date.now()}.${ext}`;
+        const { error: fb } = await supabase.storage
+          .from("diet-plans")
+          .upload(fallbackPath, file, { upsert: true });
+        if (fb) throw fb;
+        const { data: urlData } = supabase.storage.from("diet-plans").getPublicUrl(fallbackPath);
+        await update({ avatar_url: urlData.publicUrl });
+        setF((prev: any) => ({ ...prev, avatar_url: urlData.publicUrl }));
+      } else {
+        const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
+        await update({ avatar_url: urlData.publicUrl });
+        setF((prev: any) => ({ ...prev, avatar_url: urlData.publicUrl }));
+      }
+
+      toast.success("Profile photo updated!");
+      await refresh();
+    } catch (err: any) {
+      toast.error(err.message || "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const save = async () => {
-    await update({
-      full_name: f.full_name,
-      phone: f.phone,
-      gender: f.gender,
-      dob: f.dob,
-      height_cm: f.height_cm ? parseFloat(f.height_cm) : null,
-      target_weight_kg: f.target_weight_kg ? parseFloat(f.target_weight_kg) : null,
-      goal: f.goal,
-      daily_calorie_goal: parseInt(f.daily_calorie_goal) || 2000,
-      daily_water_goal_ml: parseInt(f.daily_water_goal_ml) || 2500,
-      daily_step_goal: parseInt(f.daily_step_goal) || 10000,
-      sleep_goal_hr: parseFloat(f.sleep_goal_hr) || 8,
-      coach_phone: f.coach_phone,
-    });
-    toast.success("Profile saved");
-    setEditMode(false);
+    try {
+      // If weight changed, log it
+      if (f.current_weight && parseFloat(f.current_weight) !== latestWeight) {
+        await supabase.from("weight_logs").insert({
+          user_id: user!.id,
+          weight_kg: parseFloat(f.current_weight)
+        });
+      }
+
+      await update({
+        full_name: f.full_name,
+        phone: f.phone,
+        gender: f.gender,
+        dob: f.dob,
+        height_cm: f.height_cm ? parseFloat(f.height_cm) : null,
+        target_weight_kg: f.target_weight_kg ? parseFloat(f.target_weight_kg) : null,
+        goal: f.goal,
+        daily_calorie_goal: parseInt(f.daily_calorie_goal) || 2000,
+        daily_water_goal_ml: parseInt(f.daily_water_goal_ml) || 2500,
+        daily_step_goal: parseInt(f.daily_step_goal) || 10000,
+        sleep_goal_hr: parseFloat(f.sleep_goal_hr) || 8,
+        coach_phone: f.coach_phone,
+      });
+      
+      toast.success("Profile updated");
+      setEditMode(false);
+      fetchLatestWeight();
+    } catch (err: any) {
+      toast.error("Save failed: " + err.message);
+    }
   };
 
   const coach = () => {
@@ -95,9 +183,47 @@ export default function Profile() {
       {/* Header Card */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-500 p-1 shadow-2xl transition-transform duration-500 hover:scale-[1.01]">
         <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-3xl p-6 md:p-8 flex flex-col md:flex-row items-center gap-6">
-          {/* Avatar */}
-          <div className="w-24 h-24 md:w-28 md:h-28 rounded-2xl bg-gradient-to-br from-blue-500 to-teal-400 flex items-center justify-center text-4xl font-extrabold text-white shadow-xl flex-shrink-0 transition-transform duration-300 hover:rotate-6">
-            {(f.full_name || user?.email || "U").charAt(0).toUpperCase()}
+          {/* Avatar with upload */}
+          <div className="relative group">
+            {f.avatar_url ? (
+              <img
+                src={f.avatar_url}
+                alt="Profile"
+                className="w-24 h-24 md:w-28 md:h-28 rounded-2xl object-cover shadow-xl transition-transform duration-300 group-hover:scale-105"
+              />
+            ) : (
+              <div className="w-24 h-24 md:w-28 md:h-28 rounded-2xl bg-gradient-to-br from-blue-500 to-teal-400 flex items-center justify-center text-4xl font-extrabold text-white shadow-xl flex-shrink-0 transition-transform duration-300 group-hover:rotate-6">
+                {(f.full_name || user?.email || "U").charAt(0).toUpperCase()}
+              </div>
+            )}
+            {/* Upload overlay */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="absolute inset-0 rounded-2xl bg-black/0 group-hover:bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 cursor-pointer"
+            >
+              {uploading ? (
+                <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <div className="flex flex-col items-center gap-1">
+                  <Camera className="w-6 h-6 text-white" />
+                  <span className="text-[10px] text-white font-semibold">
+                    {f.avatar_url ? "Change" : "Upload"}
+                  </span>
+                </div>
+              )}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={uploadAvatar}
+              className="hidden"
+            />
+            {/* Camera badge */}
+            <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg border-2 border-white dark:border-slate-900">
+              <Camera className="w-3.5 h-3.5 text-white" />
+            </div>
           </div>
           <div className="flex-1 min-w-0 text-center md:text-left">
             <h2 className="font-display text-2xl md:text-3xl font-extrabold bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
@@ -157,6 +283,7 @@ export default function Profile() {
               {selectField("Gender", f.gender, v => setF({ ...f, gender: v }), ["", "Male", "Female", "Other"])}
               {inputField("Date of Birth", f.dob, v => setF({ ...f, dob: v }), "date")}
               {inputField("Height (cm)", f.height_cm, v => setF({ ...f, height_cm: v }), "number")}
+              {inputField("Current Weight (kg)", f.current_weight, v => setF({ ...f, current_weight: v }), "number")}
               {inputField("Target Weight (kg)", f.target_weight_kg, v => setF({ ...f, target_weight_kg: v }), "number")}
               {selectField("Goal", f.goal, v => setF({ ...f, goal: v }), ["weight_loss", "muscle_gain", "maintenance", "endurance"])}
               {inputField("Coach WhatsApp", f.coach_phone, v => setF({ ...f, coach_phone: v }))}
@@ -168,6 +295,7 @@ export default function Profile() {
               {field("Gender", f.gender ? f.gender.charAt(0).toUpperCase() + f.gender.slice(1) : "-")}
               {field("Date of Birth", f.dob)}
               {field("Height (cm)", f.height_cm)}
+              {field("Current Weight (kg)", latestWeight)}
               {field("Target Weight (kg)", f.target_weight_kg)}
               {field("Goal", f.goal?.replace(/_/g, " "))}
               {field("Coach Phone", f.coach_phone)}

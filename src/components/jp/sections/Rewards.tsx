@@ -99,39 +99,125 @@ export default function Rewards() {
         </div>
       )}
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="glass-card rounded-2xl p-4">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Total Earned</p>
-          <p className="font-display text-2xl font-bold text-green-600">+{totalEarned}</p>
-        </div>
-        <div className="glass-card rounded-2xl p-4">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Total Spent</p>
-          <p className="font-display text-2xl font-bold text-red-600">{totalSpent}</p>
-        </div>
-        <div className="glass-card rounded-2xl p-4">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Balance</p>
-          <p className="font-display text-2xl font-bold text-primary">{points}</p>
-        </div>
+      {/* Summary Stats - Premium Style */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <RewardStat label="Total Earned" value={totalEarned} icon={TrendingUp} color="text-emerald-500" />
+        <RewardStat label="Total Spent" value={totalSpent} icon={TrendingUp} color="text-rose-500" flip />
+        <RewardStat label="Current Balance" value={points} icon={Award} color="text-primary" />
+        <RewardStat label="Claimable" value={REWARDS.filter(r => points >= r.cost).length} icon={Gift} color="text-amber-500" />
       </div>
 
+      {/* Point Balance Trend - Premium Area Chart */}
+      {balanceData.length > 0 && (
+        <div className="glass-card rounded-3xl p-6 border-primary/10 shadow-xl overflow-hidden relative">
+          <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+             <Award className="w-32 h-32" />
+          </div>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="font-display font-bold text-lg flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-primary"/>Points Growth
+              </h3>
+              <p className="text-xs text-muted-foreground">Your consistency pays off</p>
+            </div>
+            <div className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold">
+              +{(totalEarned / Math.max(1, balanceData.length)).toFixed(0)} avg / log
+            </div>
+          </div>
+          
+          <div className="h-[220px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={balanceData}>
+                <defs>
+                  <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/30" />
+                <XAxis 
+                  dataKey="date" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} 
+                  dy={10}
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} 
+                />
+                <ChartTooltip content={<CustomTooltip />} />
+                <Area 
+                  type="monotone" 
+                  dataKey="balance" 
+                  stroke="hsl(var(--primary))" 
+                  strokeWidth={3} 
+                  fillOpacity={1} 
+                  fill="url(#colorBalance)" 
+                  animationDuration={1500}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
       <div>
-        <h3 className="font-display font-bold mb-3 flex items-center gap-2"><Sparkles className="w-4 h-4 text-accent"/>Available rewards</h3>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-display font-bold text-xl flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-accent"/>Claimable Rewards
+          </h3>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+            {REWARDS.length} Items Total
+          </span>
+        </div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {REWARDS.map(r => {
             const can = points >= r.cost;
             return (
-              <div key={r.name} className="glass-card rounded-2xl p-5 flex flex-col">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="w-11 h-11 rounded-xl bg-gradient-brand text-primary-foreground flex items-center justify-center"><Gift className="w-5 h-5"/></div>
-                  <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded-full bg-secondary border border-border">{r.badge}</span>
+              <div 
+                key={r.name} 
+                className={`group glass-card rounded-3xl p-6 flex flex-col border-2 transition-all duration-300 hover:scale-[1.02] ${
+                  can ? "border-emerald-500/20 shadow-emerald-500/5" : "border-transparent opacity-80"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:rotate-12 ${
+                    can ? "bg-gradient-brand text-primary-foreground shadow-lg" : "bg-secondary text-muted-foreground"
+                  }`}>
+                    <Gift className="w-6 h-6"/>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className={`text-[9px] uppercase tracking-widest px-2.5 py-1 rounded-full font-bold mb-1 ${
+                      can ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30" : "bg-secondary text-muted-foreground"
+                    }`}>
+                      {can ? "Ready" : "Locked"}
+                    </span>
+                    <span className="text-[9px] text-muted-foreground font-medium">{r.badge}</span>
+                  </div>
                 </div>
-                <h4 className="font-display font-bold mb-1">{r.name}</h4>
-                <p className="text-xs text-muted-foreground mb-4 flex-1">Show your coach to claim after redemption.</p>
-                <div className="flex items-center justify-between">
-                  <span className="font-display font-bold text-primary">{r.cost} pts</span>
-                  <button disabled={!can || claiming===r.name} onClick={()=>claim(r)} className="px-3 py-1.5 rounded-lg bg-gradient-brand text-primary-foreground text-xs font-semibold disabled:opacity-40">
-                    {claiming===r.name ? "Claiming…" : can ? "Claim" : "Locked"}
+                <h4 className="font-display font-extrabold text-lg mb-2">{r.name}</h4>
+                <p className="text-xs text-muted-foreground mb-6 flex-1 leading-relaxed">
+                  Redeem this reward and present the code to your coach at the studio.
+                </p>
+                <div className="flex items-center justify-between pt-4 border-t border-border/50">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold">Cost</p>
+                    <p className={`font-display font-black text-xl ${can ? "text-primary" : "text-muted-foreground"}`}>
+                      {r.cost} <span className="text-xs">pts</span>
+                    </p>
+                  </div>
+                  <button 
+                    disabled={!can || claiming===r.name} 
+                    onClick={()=>claim(r)} 
+                    className={`px-6 py-2.5 rounded-xl font-bold text-xs transition-all ${
+                      can 
+                        ? "bg-gradient-brand text-primary-foreground shadow-brand hover:shadow-lg active:scale-95" 
+                        : "bg-secondary text-muted-foreground cursor-not-allowed"
+                    }`}
+                  >
+                    {claiming===r.name ? "Claiming…" : can ? "Redeem Now" : `Need ${r.cost - points} more`}
                   </button>
                 </div>
               </div>
@@ -179,4 +265,33 @@ export default function Rewards() {
       </div>
     </div>
   );
+}
+
+function RewardStat({ label, value, icon: Icon, color, flip }: any) {
+  return (
+    <div className="glass-card rounded-2xl p-4 flex flex-col items-center justify-center text-center">
+      <div className={`w-8 h-8 rounded-lg bg-secondary flex items-center justify-center mb-2 ${flip ? "rotate-180" : ""}`}>
+        <Icon className={`w-4 h-4 ${color}`} />
+      </div>
+      <p className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">{label}</p>
+      <p className={`font-display text-xl font-black ${color}`}>{typeof value === 'number' && value > 0 && !flip ? "+" : ""}{value}</p>
+    </div>
+  );
+}
+
+function CustomTooltip({ active, payload }: any) {
+  if (active && payload && payload.length) {
+    return (
+      <div className="glass-card p-3 rounded-xl border-primary/20 shadow-xl animate-pop">
+        <p className="text-[10px] font-bold text-muted-foreground mb-1">{payload[0].payload.date}</p>
+        <p className="text-sm font-black text-primary">{payload[0].value} <span className="text-[10px] font-bold">PTS</span></p>
+        {payload[0].payload.change !== 0 && (
+          <p className={`text-[9px] font-bold ${payload[0].payload.change > 0 ? "text-emerald-500" : "text-rose-500"}`}>
+            {payload[0].payload.change > 0 ? "↑" : "↓"} {Math.abs(payload[0].payload.change)} pts
+          </p>
+        )}
+      </div>
+    );
+  }
+  return null;
 }

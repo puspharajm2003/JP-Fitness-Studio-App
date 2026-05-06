@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/providers/AuthProvider";
-import { ClipboardCheck, Flame } from "lucide-react";
+import { useProfile } from "@/lib/useProfile";
+import { ClipboardCheck, Flame, Trophy } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Attendance() {
   const { user } = useAuth();
+  const { profile, refresh } = useProfile();
   const [logs, setLogs] = useState<any[]>([]);
   const [todayDone, setTodayDone] = useState(false);
 
@@ -20,7 +22,21 @@ export default function Attendance() {
 
   const checkIn = async () => {
     const { error } = await supabase.from("attendance").insert({ user_id: user!.id });
-    if (error) toast.error(error.message); else { toast.success("Checked in! +10 loyalty points"); load(); }
+    if (error) { toast.error(error.message); return; }
+    // Award loyalty points
+    const newPoints = (profile?.loyalty_points || 0) + 10;
+    await supabase.from("profiles").update({ loyalty_points: newPoints }).eq("id", user!.id);
+    // Log point change
+    await supabase.from("loyalty_point_logs").insert({
+      user_id: user!.id,
+      points_change: 10,
+      reason: "check-in",
+      related_id: null,
+    });
+    // Refresh profile to update loyalty_points in UI
+    await refresh();
+    toast.success(`Checked in! +10 loyalty points (Total: ${newPoints} pts)`);
+    load();
   };
 
   // Build last 30-day calendar grid
@@ -30,6 +46,7 @@ export default function Attendance() {
     return { key, day: d.getDate(), present: logs.some(l => l.date === key) };
   });
   const streak = (() => { let s = 0; for (let i = days.length-1; i>=0; i--) { if (days[i].present) s++; else break; } return s; })();
+  const points = profile?.loyalty_points || 0;
 
   return (
     <div className="space-y-6">
@@ -37,9 +54,15 @@ export default function Attendance() {
         <p className="text-xs uppercase tracking-widest opacity-90">Today</p>
         <h2 className="font-display text-3xl font-extrabold mt-1">{todayDone ? "✓ Checked In" : "Not yet checked in"}</h2>
         <p className="opacity-90 mt-1 mb-4 flex items-center gap-1.5"><Flame className="w-4 h-4"/> {streak}-day streak</p>
-        <button disabled={todayDone} onClick={checkIn} className="px-6 py-3 rounded-xl bg-white text-foreground font-semibold flex items-center gap-2 disabled:opacity-50">
-          <ClipboardCheck className="w-4 h-4"/> {todayDone ? "Already checked in" : "Check in now"}
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button disabled={todayDone} onClick={checkIn} className="px-6 py-3 rounded-xl bg-white text-foreground font-semibold flex items-center gap-2 disabled:opacity-50">
+            <ClipboardCheck className="w-4 h-4"/> {todayDone ? "Already checked in" : "Check in now"}
+          </button>
+          <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/20 backdrop-blur">
+            <Trophy className="w-4 h-4" />
+            <span className="font-bold text-sm">{points} pts</span>
+          </div>
+        </div>
       </div>
 
       <div className="glass-card rounded-2xl p-6">
@@ -69,3 +92,4 @@ export default function Attendance() {
     </div>
   );
 }
+

@@ -1,10 +1,12 @@
-import { Bell, LogOut, Palette, Search, Shield, Settings, BarChart3 } from "lucide-react";
+import { Bell, LogOut, Palette, Search, Shield, Settings, BarChart3, Download, X, Share } from "lucide-react";
 import { ReactNode, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/providers/AuthProvider";
 import { useTheme, themes } from "@/providers/ThemeProvider";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
+import { usePWAInstall } from "@/hooks/usePWAInstall";
+import { useProfile } from "@/lib/useProfile";
 import logo from "/jp-logo.png";
 import { Home, ClipboardCheck, Scale, Apple, Dumbbell, Award, Pill, User, GlassWater, Activity as ActivityIcon } from "lucide-react";
 
@@ -28,7 +30,11 @@ export default function Layout({ children }: { children: ReactNode }) {
   const loc = useLocation();
   const { themeId, setTheme } = useTheme();
   const [showThemes, setShowThemes] = useState(false);
+  const [showInstallBanner, setShowInstallBanner] = useState(true);
+  const [showIOSGuide, setShowIOSGuide] = useState(false);
   const initials = (user?.user_metadata?.full_name || user?.email || "U").slice(0,1).toUpperCase();
+  const { canInstall, isInstalled, isIOS, install } = usePWAInstall();
+  const { profile: layoutProfile } = useProfile();
 
   // Admin nav items
   const adminNav = isAdmin ? [
@@ -43,6 +49,14 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   // All nav items for sidebar
   const allNavItems = navItems;
+
+  const handleInstall = async () => {
+    if (isIOS) {
+      setShowIOSGuide(true);
+    } else {
+      await install();
+    }
+  };
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -85,6 +99,17 @@ export default function Layout({ children }: { children: ReactNode }) {
               <input placeholder="Search workouts, foods…" className="bg-transparent outline-none text-sm flex-1" />
             </div>
             <div className="flex items-center gap-2">
+              {/* Mobile install button in header */}
+              {canInstall && !isInstalled && (
+                <button
+                  onClick={handleInstall}
+                  className="lg:hidden w-10 h-10 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/20 flex items-center justify-center relative transition-all hover:scale-105"
+                  title="Install App"
+                >
+                  <Download className="w-4 h-4" style={{ color: "hsl(var(--primary))" }} />
+                  <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-green-500 border-2 border-background animate-pulse" />
+                </button>
+              )}
               <div className="relative">
                 <button onClick={() => setShowThemes(s => !s)} className="w-10 h-10 rounded-xl border border-border bg-card hover:bg-secondary flex items-center justify-center transition">
                   <Palette className="w-4 h-4" style={{ color: `hsl(var(--primary))` }} />
@@ -107,12 +132,16 @@ export default function Layout({ children }: { children: ReactNode }) {
                   </div>
                 )}
               </div>
-              <button className="w-10 h-10 rounded-xl border border-border bg-card hover:bg-secondary flex items-center justify-center relative">
+              <Link to="/notifications" className="w-10 h-10 rounded-xl border border-border bg-card hover:bg-secondary flex items-center justify-center relative transition-all hover:scale-105">
                 <Bell className="w-4 h-4" />
-                <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-accent" />
-              </button>
-              <Link to="/profile" className="w-10 h-10 rounded-xl bg-gradient-brand text-primary-foreground flex items-center justify-center font-bold shadow-brand">
-                {initials}
+                <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-accent animate-pulse" />
+              </Link>
+              <Link to="/profile" className="w-10 h-10 rounded-xl overflow-hidden bg-gradient-brand text-primary-foreground flex items-center justify-center font-bold shadow-brand">
+                {layoutProfile?.avatar_url ? (
+                  <img src={layoutProfile.avatar_url} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  initials
+                )}
               </Link>
             </div>
           </div>
@@ -122,6 +151,88 @@ export default function Layout({ children }: { children: ReactNode }) {
           {children}
         </div>
       </main>
+
+      {/* PWA Install Banner (mobile only) */}
+      {canInstall && !isInstalled && showInstallBanner && (
+        <div className="lg:hidden fixed bottom-[4.5rem] left-3 right-3 z-50 animate-pop">
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-4 shadow-2xl shadow-blue-500/25">
+            <div className="absolute -top-10 -right-5 w-32 h-32 rounded-full bg-white/10 blur-2xl" />
+            <button
+              onClick={() => setShowInstallBanner(false)}
+              className="absolute top-2 right-2 w-7 h-7 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+            >
+              <X className="w-3.5 h-3.5 text-white" />
+            </button>
+            <div className="relative flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center shrink-0">
+                <img src={logo} alt="JP" className="w-8 h-8 rounded-lg" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-bold text-sm">Install JP Fitness</p>
+                <p className="text-white/70 text-xs mt-0.5">Get faster access & offline support</p>
+              </div>
+              <button
+                onClick={handleInstall}
+                className="px-4 py-2 rounded-xl bg-white text-indigo-700 font-bold text-xs flex items-center gap-1.5 hover:scale-105 transition-transform shadow-lg shrink-0"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Install
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* iOS Install Guide Modal */}
+      {showIOSGuide && (
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 backdrop-blur-sm animate-pop" onClick={() => setShowIOSGuide(false)}>
+          <div className="w-full max-w-md mx-3 mb-3 rounded-2xl bg-card border border-border p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-display font-bold text-lg">Install on iPhone</h3>
+              <button onClick={() => setShowIOSGuide(false)} className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="text-sm font-bold text-blue-600">1</span>
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">Tap the Share button</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                    Look for the <Share className="w-3 h-3 inline" /> icon at the bottom of Safari
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="text-sm font-bold text-blue-600">2</span>
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">Scroll down & tap "Add to Home Screen"</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">It may be in the second row of options</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="text-sm font-bold text-emerald-600">3</span>
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">Tap "Add" to install</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">JP Fitness will appear on your home screen!</p>
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowIOSGuide(false)}
+              className="w-full mt-5 py-3 rounded-xl bg-gradient-brand text-primary-foreground font-bold text-sm shadow-brand"
+            >
+              Got it!
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Bottom nav (mobile) */}
       <nav className="lg:hidden fixed bottom-3 left-3 right-3 z-40 glass-card rounded-2xl px-2 py-2">
@@ -142,3 +253,4 @@ export default function Layout({ children }: { children: ReactNode }) {
     </div>
   );
 }
+

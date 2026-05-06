@@ -23,6 +23,13 @@ export const useProfile = () => {
 
   useEffect(() => { refresh(); }, [refresh]);
 
+  // Periodic refresh every 30s for near-real-time updates (replaces broken Supabase realtime channel)
+  useEffect(() => {
+    if (!user) return;
+    const interval = setInterval(refresh, 30000);
+    return () => clearInterval(interval);
+  }, [user, refresh]);
+
   const update = async (patch: Partial<Profile>) => {
     if (!user) return;
     const { data } = await supabase.from("profiles").update(patch).eq("id", user.id).select().single();
@@ -31,3 +38,4 @@ export const useProfile = () => {
 
   return { profile, loading, refresh, update };
 };
+

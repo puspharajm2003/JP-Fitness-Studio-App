@@ -1,23 +1,26 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/providers/AuthProvider";
 import { useProfile } from "@/lib/useProfile";
 import { today } from "@/lib/dateUtil";
-import { Activity, ClipboardCheck, Dumbbell, Flame, Footprints, GlassWater, MessageCircle, Scale, Sparkles, TrendingDown, Trophy, TrendingUp } from "lucide-react";
+import { Activity, ClipboardCheck, Dumbbell, Flame, Footprints, GlassWater, MessageCircle, Moon, Scale, Sparkles, TrendingDown, Trophy, TrendingUp, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import TrendsSection from "./TrendsSection";
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { profile } = useProfile();
-  const [stats, setStats] = useState({ steps: 0, water: 0, weight: 0, attendance: 0, kcal: 0, workouts: 0 });
+  const { profile, refresh } = useProfile();
+  const [stats, setStats] = useState({ steps: 0, water: 0, weight: 0, attendance: 0, kcal: 0, workouts: 0, sleep: 0 });
   const [pkg, setPkg] = useState<any>(null);
+  const [deviceSteps, setDeviceSteps] = useState<number | null>(null);
+  const [deviceSleep, setDeviceSleep] = useState<number | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
 
-  useEffect(() => { (async () => {
+  const loadStats = useCallback(async () => {
     if (!user) return;
     const t = today();
-    const [steps, water, weight, attCount, food, workouts, p] = await Promise.all([
+    const [steps, water, weight, attCount, food, workouts, p, sleepLog] = await Promise.all([
       supabase.from("step_logs").select("steps").eq("user_id", user.id).eq("date", t).maybeSingle(),
       supabase.from("water_logs").select("amount_ml").eq("user_id", user.id).eq("date", t),
       supabase.from("weight_logs").select("weight_kg,date").eq("user_id", user.id).order("date",{ascending:false}).limit(1),
@@ -25,6 +28,7 @@ export default function Dashboard() {
       supabase.from("food_logs").select("kcal").eq("user_id", user.id).eq("date", t),
       supabase.from("workout_logs").select("id",{count:"exact",head:true}).eq("user_id", user.id).gte("date", new Date(Date.now()-7*864e5).toISOString().slice(0,10)),
       supabase.from("packages").select("*").eq("user_id", user.id).eq("status","active").order("end_date",{ascending:true}).limit(1).maybeSingle(),
+      supabase.from("sleep_logs").select("hours").eq("user_id", user.id).eq("date", t).maybeSingle(),
     ]);
     setStats({
       steps: steps.data?.steps ?? 0,
@@ -33,9 +37,68 @@ export default function Dashboard() {
       attendance: attCount.count ?? 0,
       kcal: (food.data ?? []).reduce((s,r)=>s+(r.kcal||0),0),
       workouts: workouts.count ?? 0,
+      sleep: sleepLog.data?.hours ?? 0,
     });
     setPkg(p.data);
-  })(); }, [user]);
+  }, [user]);
+
+  useEffect(() => { loadStats(); }, [loadStats]);
+
+  // Try to read device step data via Sensor API (available on Android Chrome)
+  useEffect(() => {
+    let sensor: any = null;
+    try {
+      if ("Accelerometer" in window) {
+        // Use a step counting approach based on accelerometer
+        // This is a simplified version — real step counting requires more filtering
+        let stepCount = 0;
+        let lastMagnitude = 0;
+        let threshold = 12;
+
+        sensor = new (window as any).Accelerometer({ frequency: 10 });
+        sensor.addEventListener("reading", () => {
+          const mag = Math.sqrt(sensor.x ** 2 + sensor.y ** 2 + sensor.z ** 2);
+          if (lastMagnitude > threshold && mag < threshold) {
+            stepCount++;
+            setDeviceSteps(stepCount);
+          }
+          lastMagnitude = mag;
+        });
+        sensor.start();
+      }
+    } catch {
+      // Sensor API not available — that's fine, use manual input
+    }
+    return () => { if (sensor) try { sensor.stop(); } catch {} };
+  }, []);
+
+  // Estimate sleep from user's last known data
+  useEffect(() => {
+    // Check if there's today's sleep log, if not, show a helpful indicator
+    if (stats.sleep > 0) {
+      setDeviceSleep(stats.sleep);
+    }
+  }, [stats.sleep]);
+
+  // Auto-sync device steps to Supabase
+  useEffect(() => {
+    if (deviceSteps && deviceSteps > 0 && user) {
+      const syncTimeout = setTimeout(async () => {
+        setIsSyncing(true);
+        const totalSteps = stats.steps + deviceSteps;
+        const { error } = await supabase.from("step_logs").upsert(
+          { user_id: user.id, date: today(), steps: totalSteps },
+          { onConflict: "user_id,date" }
+        );
+        if (!error) {
+          setTimeout(() => setIsSyncing(false), 2000);
+        } else {
+          setIsSyncing(false);
+        }
+      }, 30000); // Sync every 30 seconds
+      return () => clearTimeout(syncTimeout);
+    }
+  }, [deviceSteps, user, stats.steps]);
 
   const checkIn = async () => {
     const { error } = await supabase.from("attendance").insert({ user_id: user!.id });
@@ -44,15 +107,18 @@ export default function Dashboard() {
       return;
     }
     // Update points on profile
-    await supabase.from("profiles").update({ loyalty_points: (profile?.loyalty_points||0)+10 }).eq("id", user!.id);
+    const newPoints = (profile?.loyalty_points || 0) + 10;
+    await supabase.from("profiles").update({ loyalty_points: newPoints }).eq("id", user!.id);
     // Log point change
     await supabase.from("loyalty_point_logs").insert({
       user_id: user!.id,
       points_change: 10,
       reason: "check-in",
-      related_id: undefined,
+      related_id: null,
     });
-    toast.success("Checked in! +10 points");
+    // Refresh profile to update loyalty_points in UI
+    await refresh();
+    toast.success(`Checked in! +10 points (Total: ${newPoints} pts)`);
   };
 
   const coachMsg = () => {
@@ -61,6 +127,10 @@ export default function Dashboard() {
   };
 
   const daysLeft = pkg ? Math.max(0, Math.ceil((new Date(pkg.end_date).getTime()-Date.now())/864e5)) : null;
+  const displaySteps = (deviceSteps || 0) + stats.steps;
+  const stepGoal = profile?.daily_step_goal || 10000;
+  const stepPercent = Math.min(100, (displaySteps / stepGoal) * 100);
+  const sleepGoal = profile?.sleep_goal_hr || 8;
 
   return (
     <div className="space-y-6">
@@ -94,11 +164,66 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Steps & Sleep Real-time cards */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* Steps card with circular progress */}
+        <Link to="/activity" className="glass-card rounded-2xl p-4 hover:scale-[1.02] transition-transform animate-pop relative">
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center">
+              <Footprints className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div className="flex flex-col items-end gap-1">
+              {deviceSteps !== null && (
+                <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-semibold animate-pulse">
+                  LIVE
+                </span>
+              )}
+              {isSyncing && (
+                <span className="text-[8px] flex items-center gap-1 text-emerald-600 font-bold">
+                  <CheckCircle className="w-2.5 h-2.5" /> Synced
+                </span>
+              )}
+            </div>
+          </div>
+
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Steps Today</p>
+          <p className="font-display text-2xl font-extrabold">{displaySteps.toLocaleString()}</p>
+          <div className="mt-2 h-1.5 rounded-full bg-secondary overflow-hidden">
+            <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-1000" style={{ width: `${stepPercent}%` }} />
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1">/ {stepGoal.toLocaleString()} goal</p>
+        </Link>
+
+        {/* Sleep card */}
+        <Link to="/activity" className="glass-card rounded-2xl p-4 hover:scale-[1.02] transition-transform animate-pop">
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center">
+              <Moon className="w-5 h-5 text-indigo-600" />
+            </div>
+            {stats.sleep > 0 && (
+              <span className="text-[9px] px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 font-semibold">
+                LOGGED
+              </span>
+            )}
+          </div>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Sleep</p>
+          <p className="font-display text-2xl font-extrabold">{stats.sleep > 0 ? `${stats.sleep}h` : "—"}</p>
+          <div className="mt-2 h-1.5 rounded-full bg-secondary overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-400 transition-all duration-1000"
+              style={{ width: `${Math.min(100, (stats.sleep / sleepGoal) * 100)}%` }}
+            />
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1">/ {sleepGoal}h goal</p>
+        </Link>
+      </div>
+
+      {/* Main stat tiles */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatTile icon={Footprints} label="Steps" value={stats.steps.toLocaleString()} sub={`/ ${profile?.daily_step_goal || 10000}`} to="/activity" />
         <StatTile icon={GlassWater} label="Water" value={`${stats.water}ml`} sub={`/ ${profile?.daily_water_goal_ml || 2500}`} to="/water" />
         <StatTile icon={Flame} label="Calories" value={`${stats.kcal}`} sub={`/ ${profile?.daily_calorie_goal || 2000}`} to="/diet" />
         <StatTile icon={Dumbbell} label="Workouts" value={`${stats.workouts}`} sub="this week" to="/workout" />
+        <StatTile icon={Scale} label="Weight" value={stats.weight ? `${stats.weight}kg` : "—"} sub="latest" to="/progress" />
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
