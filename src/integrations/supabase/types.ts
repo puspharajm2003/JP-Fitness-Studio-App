@@ -505,6 +505,33 @@ export type Database = {
         }
         Relationships: []
       }
+      loyalty_point_logs: {
+        Row: {
+          id: string
+          user_id: string
+          points_change: number
+          reason: string
+          related_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string
+          points_change?: number
+          reason?: string
+          related_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          points_change?: number
+          reason?: string
+          related_id?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

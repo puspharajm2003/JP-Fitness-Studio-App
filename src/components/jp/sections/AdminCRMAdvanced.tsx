@@ -37,6 +37,27 @@ export default function AdminCRMAdvanced() {
 
   useEffect(() => {
     loadData();
+    // Set up real-time subscriptions for profiles, packages, and attendance
+    const profileChannel = supabase.channel('public:profiles')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+        loadData();
+      })
+      .subscribe();
+    const packagesChannel = supabase.channel('public:packages')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'packages' }, () => {
+        loadData();
+      })
+      .subscribe();
+    const attendanceChannel = supabase.channel('public:attendance')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance' }, () => {
+        loadData();
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(profileChannel);
+      supabase.removeChannel(packagesChannel);
+      supabase.removeChannel(attendanceChannel);
+    };
   }, [user]);
 
   const loadData = async () => {
@@ -108,9 +129,9 @@ export default function AdminCRMAdvanced() {
   ];
 
   return (
-    <div className="min-h-screen flex bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+    <div className="min-h-screen flex bg-gradient-to-br from-blue-50 to-purple-50 dark:from-slate-950 dark:to-slate-900">
       {/* Sidebar */}
-      <aside className="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col shadow-xl">
+      <aside className="w-64 bg-gradient-to-b from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950 border-r border-blue-200 dark:border-blue-800 flex flex-col shadow-xl">
         <div className="p-6 border-b border-slate-200 dark:border-slate-800">
           <Button
             variant="ghost"
