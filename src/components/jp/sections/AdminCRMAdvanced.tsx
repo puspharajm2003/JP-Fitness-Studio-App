@@ -12,7 +12,6 @@ import { cn } from "@/lib/utils";
 interface Member {
   id: string;
   full_name: string;
-  email: string;
   phone: string;
   membership_status: string;
   join_date: string;
@@ -67,7 +66,7 @@ export default function AdminCRMAdvanced() {
       // Fetch profiles with membership info
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, full_name, email, phone, created_at")
+        .select("id, full_name, phone, created_at")
         .order("created_at", { ascending: false });
 
       // Fetch packages to determine membership status
@@ -91,7 +90,6 @@ export default function AdminCRMAdvanced() {
         memberMap.set(p.id, {
           id: p.id,
           full_name: p.full_name || "Unnamed",
-          email: p.email || "",
           phone: p.phone || "-",
           membership_status: activePkg ? "Active" : "Inactive",
           join_date: p.created_at?.split("T")[0] || "-",
@@ -236,7 +234,6 @@ export default function AdminCRMAdvanced() {
                     <TableHeader>
                       <TableRow className="border-slate-200 dark:border-slate-800">
                         <TableHead className="text-slate-600 dark:text-slate-400">Name</TableHead>
-                        <TableHead className="text-slate-600 dark:text-slate-400">Email</TableHead>
                         <TableHead className="text-slate-600 dark:text-slate-400">Membership</TableHead>
                         <TableHead className="text-slate-600 dark:text-slate-400">Join Date</TableHead>
                         <TableHead className="text-slate-600 dark:text-slate-400">Last Check-in</TableHead>
@@ -248,7 +245,6 @@ export default function AdminCRMAdvanced() {
                       {members.slice(0, 10).map(member => (
                         <TableRow key={member.id} className="border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
                           <TableCell className="font-medium text-slate-900 dark:text-white">{member.full_name}</TableCell>
-                          <TableCell className="text-slate-600 dark:text-slate-400">{member.email}</TableCell>
                           <TableCell>
                             <Badge variant={member.membership_status === "Active" ? "default" : "secondary"}>
                               {member.membership_status}
@@ -266,7 +262,7 @@ export default function AdminCRMAdvanced() {
                       ))}
                       {members.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-8 text-slate-500">
+                          <TableCell colSpan={6} className="text-center py-8 text-slate-500">
                             No members found.
                           </TableCell>
                         </TableRow>
