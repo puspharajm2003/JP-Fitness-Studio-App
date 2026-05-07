@@ -8,12 +8,13 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { usePWAInstall } from "@/hooks/usePWAInstall";
 import { useProfile } from "@/lib/useProfile";
 import logo from "/jp-logo.png";
-import { Home, ClipboardCheck, Scale, Apple, Dumbbell, Award, Pill, User, GlassWater, Activity as ActivityIcon } from "lucide-react";
+import { Home, ClipboardCheck, Scale, Apple, Dumbbell, Award, Pill, User, GlassWater, Activity as ActivityIcon, Calculator } from "lucide-react";
 
 export const navItems = [
   { to: "/", label: "Home", icon: Home },
   { to: "/attendance", label: "Attendance", icon: ClipboardCheck },
   { to: "/progress", label: "Progress", icon: Scale },
+  { to: "/tool", label: "Tools", icon: Calculator },
   { to: "/diet", label: "Diet", icon: Apple },
   { to: "/workout", label: "Workout", icon: Dumbbell },
   { to: "/water", label: "Hydration", icon: GlassWater },
@@ -43,7 +44,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   // Bottom nav includes main items plus admin items for mobile
   const bottomNavItems = [
-    ...navItems.filter(i => ["/", "/attendance", "/workout", "/diet", "/profile"].includes(i.to)),
+    ...navItems.filter(i => ["/", "/progress", "/workout", "/diet", "/profile"].includes(i.to)),
     ...adminNav,
   ];
 

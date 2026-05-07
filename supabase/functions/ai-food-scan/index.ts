@@ -1,15 +1,46 @@
-import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
+/// <reference lib="deno.ns" />
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-Deno.serve(async (req) => {
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  
   try {
+    // Get and validate JWT token
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Missing or invalid authorization header" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    
+    const token = authHeader.substring(7); // Remove "Bearer " prefix
+    
+    // Verify token with Supabase
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (error || !user) {
+      return new Response(JSON.stringify({ error: "Invalid or expired token" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { image, mime_type = "image/jpeg" } = await req.json().catch(() => ({}));
     if (!image) throw new Error("No image provided");
 
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) throw new Error("LOVABLE_API_KEY missing");
 
-    const sys = `You are a certified nutritionist and food scientist with expertise in analyzing food from images. 
+    const sys = `You are a certified nutritionist and food scientist with expertise in analyzing food from images.
 Analyze the food in the image and return ONLY valid JSON in this exact shape:
 {"name":"Food Name","kcal":0,"protein_g":0,"carbs_g":0,"fat_g":0,"fiber_g":0,"vitamins":["Vitamin A","Vitamin C"],"minerals":["Iron","Calcium"],"serving_size":"1 plate (~300g)"}
 
@@ -44,7 +75,7 @@ Rules:
 
     if (!r.ok) {
       const t = await r.text();
-      return new Response(JSON.stringify({ error: t }), {
+      return new Response(JSON.stringify({ error: "AI service temporarily unavailable" }), {
         status: r.status,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -58,7 +89,8 @@ Rules:
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), {
+    // Return generic error message to avoid exposing internal details
+    return new Response(JSON.stringify({ error: "An error occurred processing your request" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

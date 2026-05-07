@@ -8,6 +8,7 @@ export interface Profile {
   goal: string | null; target_weight_kg: number | null;
   daily_calorie_goal: number; daily_water_goal_ml: number; daily_step_goal: number; sleep_goal_hr: number;
   theme: string; coach_phone: string; loyalty_points: number;
+  coach_id: string | null; coach_name: string | null;
 }
 
 export const useProfile = () => {
@@ -32,7 +33,7 @@ export const useProfile = () => {
 
   const update = async (patch: Partial<Profile>) => {
     if (!user) return;
-    const { data } = await supabase.from("profiles").update(patch).eq("id", user.id).select().single();
+    const { data } = await supabase.from("profiles").update(patch as any).eq("id", user.id).select().single();
     if (data) setProfile(data as any);
   };
 

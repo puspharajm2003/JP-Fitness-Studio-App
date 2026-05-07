@@ -12,6 +12,8 @@ import Medications from "@/components/jp/sections/Medications";
 import Rewards from "@/components/jp/sections/Rewards";
 import Notifications from "@/components/jp/sections/Notifications";
 import Profile from "@/components/jp/sections/Profile";
+import Tool from "@/components/jp/sections/Tool";
+import CoachCrmPanel from "@/components/jp/sections/CoachCrmPanel";
 
 export default function Index() {
   const { user, loading } = useAuth();
@@ -23,8 +25,10 @@ export default function Index() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/attendance" element={<Attendance />} />
         <Route path="/progress" element={<Progress />} />
+        <Route path="/tool" element={<Tool />} />
         <Route path="/diet" element={<Diet />} />
         <Route path="/workout" element={<Workout />} />
+        <Route path="/coach" element={<CoachCrmPanel />} />
         <Route path="/water" element={<Water />} />
         <Route path="/activity" element={<ActivityPage />} />
         <Route path="/medications" element={<Medications />} />

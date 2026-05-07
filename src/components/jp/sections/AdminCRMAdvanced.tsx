@@ -38,11 +38,19 @@ export default function AdminCRMAdvanced() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [activeTab, setActiveTab] = useState<"overview" | "members" | "revenue" | "attendance">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "members" | "revenue" | "attendance" | "management">("overview");
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [lastSync, setLastSync] = useState<Date>(new Date());
   const [revenueData, setRevenueData] = useState<any[]>([]);
   const [attendanceData, setAttendanceData] = useState<any[]>([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+  useEffect(() => {
+    if (user?.email?.toLowerCase() === "puspharaj.m2003@gmail.com") {
+      setIsSuperAdmin(true);
+    }
+  }, [user]);
 
   const loadData = useCallback(async (isInitial = false) => {
     if (!user) return;
@@ -129,19 +137,20 @@ export default function AdminCRMAdvanced() {
     return () => clearInterval(interval);
   }, [loadData]);
 
-  const filteredMembers = members.filter(m => 
-    m.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    m.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredMembers = members.filter(m =>
+    (m.full_name || "Unnamed").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Stats calculation
+  // Stats calculation - real data only
   const totalRev = members.reduce((s, m) => s + m.total_spent, 0);
   const activeCount = members.filter(m => m.membership_status === "Active").length;
+  const inactiveCount = members.filter(m => m.membership_status === "Inactive").length;
   const expiringSoon = members.filter(m => {
     if (m.membership_status !== "Active" || !m.package_end) return false;
     const days = (new Date(m.package_end).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24);
     return days >= 0 && days <= 7;
   }).length;
+  const totalCheckins = members.filter(m => m.last_checkin !== "Never").length;
 
   return (
     <div className="min-h-screen flex bg-[#f8fafc] dark:bg-[#020617] text-slate-900 dark:text-slate-100 font-sans selection:bg-primary/10">
@@ -164,6 +173,7 @@ export default function AdminCRMAdvanced() {
               { id: "members", label: "Members", icon: Users },
               { id: "revenue", label: "Revenue", icon: DollarSign },
               { id: "attendance", label: "Attendance", icon: Calendar },
+              ...(isSuperAdmin ? [{ id: "management", label: "Super Admin", icon: ShieldCheck }] : []),
             ].map(item => (
               <button
                 key={item.id}
@@ -249,26 +259,23 @@ export default function AdminCRMAdvanced() {
               {/* Overiew / Stats */}
               {activeTab === "overview" && (
                 <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <StatCardUltra label="Total Revenue" value={`$${totalRev.toLocaleString()}`} change="+14.2%" trend="up" icon={DollarSign} color="blue" />
-                    <StatCardUltra label="Active Members" value={activeCount.toString()} change="+5.8%" trend="up" icon={Users} color="purple" />
-                    <StatCardUltra label="Expiring Soon" value={expiringSoon.toString()} change="-2" trend="down" icon={AlertTriangle} color="amber" />
-                    <StatCardUltra label="Growth Rate" value="22.5%" change="+3.1%" trend="up" icon={TrendingUp} color="emerald" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <StatCardUltra label="Total Revenue" value={`$${totalRev.toLocaleString()}`} icon={DollarSign} color="blue" />
+                    <StatCardUltra label="Active Members" value={activeCount.toString()} icon={Users} color="purple" />
+                    <StatCardUltra label="Inactive Members" value={inactiveCount.toString()} icon={AlertTriangle} color="amber" />
+                    <StatCardUltra label="Checked-in Today" value={totalCheckins.toString()} icon={Activity} color="emerald" />
                   </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <Card className="lg:col-span-2 rounded-[32px] border-none shadow-premium bg-white dark:bg-slate-900 overflow-hidden">
-                      <CardHeader className="p-8 flex flex-row items-center justify-between">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <Card className="lg:col-span-2 rounded-2xl border-none shadow-lg bg-white dark:bg-slate-900 overflow-hidden">
+                      <CardHeader className="p-5 flex flex-row items-center justify-between">
                         <div>
-                          <CardTitle className="font-display font-black text-2xl">Revenue Trends</CardTitle>
-                          <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider mt-1">Last 6 Months Projection</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge className="rounded-lg bg-blue-500/10 text-blue-600 border-none px-3 py-1 font-bold text-[10px]">Monthly</Badge>
+                          <CardTitle className="font-display font-bold text-lg">Revenue Trends</CardTitle>
+                          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mt-1">Last 6 Months</p>
                         </div>
                       </CardHeader>
-                      <CardContent className="px-6 pb-8">
-                        <div className="h-[320px] w-full">
+                      <CardContent className="px-4 pb-5">
+                        <div className="h-[220px] w-full">
                           <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={revenueData}>
                               <defs>
@@ -281,30 +288,27 @@ export default function AdminCRMAdvanced() {
                               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: "#94a3b8"}} dy={10} />
                               <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: "#94a3b8"}} />
                               <Tooltip content={<CustomTooltip />} />
-                              <Area type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" strokeWidth={4} fillOpacity={1} fill="url(#colorRev)" />
+                              <Area type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
                             </AreaChart>
                           </ResponsiveContainer>
                         </div>
                       </CardContent>
                     </Card>
 
-                    <Card className="rounded-[32px] border-none shadow-premium bg-white dark:bg-slate-900 p-8 flex flex-col">
-                      <h3 className="font-display font-black text-2xl mb-2">Member Retention</h3>
-                      <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-8">Performance breakdown</p>
-                      
-                      <div className="flex-1 space-y-6">
-                         <RetentionItem label="Check-in Consistency" value={85} color="bg-blue-500" />
-                         <RetentionItem label="Package Renewal" value={72} color="bg-purple-500" />
-                         <RetentionItem label="Loyalty Redemption" value={45} color="bg-emerald-500" />
-                         <RetentionItem label="Social Engagement" value={60} color="bg-amber-500" />
+                    <Card className="rounded-2xl border-none shadow-lg bg-white dark:bg-slate-900 p-5 flex flex-col">
+                      <h3 className="font-display font-bold text-lg mb-1">Attendance This Month</h3>
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-4">Daily check-ins</p>
+                      <div className="flex-1 flex items-end gap-1.5">
+                        {attendanceData.map((d, i) => (
+                          <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                            <div className="w-full rounded-t-md bg-gradient-to-t from-primary/80 to-primary/30 transition-all" style={{height: `${d.attendance}%`}} title={`${d.name}: ${d.attendance}`} />
+                            <span className="text-[8px] text-muted-foreground font-bold">{d.name.slice(0,3)}</span>
+                          </div>
+                        ))}
                       </div>
-
-                      <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800">
-                        <div className="flex items-center justify-between mb-4">
-                          <p className="text-sm font-bold">Total Retention Score</p>
-                          <p className="text-2xl font-black text-primary">A-</p>
-                        </div>
-                        <Button className="w-full h-12 rounded-2xl bg-secondary text-foreground font-bold text-sm">Optimize Growth</Button>
+                      <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Total Check-ins</p>
+                        <p className="text-xl font-black text-primary">{attendanceData.reduce((s, d) => s + d.attendance, 0)}</p>
                       </div>
                     </Card>
                   </div>
@@ -343,7 +347,7 @@ export default function AdminCRMAdvanced() {
                                   </div>
                                   <div>
                                     <p className="font-bold text-sm leading-none mb-1">{m.full_name}</p>
-                                    <p className="text-[11px] text-muted-foreground font-medium">{m.email}</p>
+                                    <p className="text-[11px] text-muted-foreground font-medium">{m.role}</p>
                                   </div>
                                 </div>
                               </TableCell>
@@ -369,7 +373,7 @@ export default function AdminCRMAdvanced() {
                                 </div>
                               </TableCell>
                               <TableCell className="pr-8 text-right">
-                                <button className="p-2 rounded-xl hover:bg-slate-200/50 dark:hover:bg-slate-700 transition-colors">
+                                <button onClick={() => setSelectedMember(m)} className="p-2 rounded-xl hover:bg-slate-200/50 dark:hover:bg-slate-700 transition-colors">
                                   <MoreHorizontal className="w-5 h-5 text-muted-foreground" />
                                 </button>
                               </TableCell>
@@ -389,40 +393,85 @@ export default function AdminCRMAdvanced() {
                       </Table>
                    </CardContent>
                 </Card>
-              )}
-            </div>
-          )}
-        </div>
-      </main>
-    </div>
-  );
+                )}
+
+                {activeTab === "management" && isSuperAdmin && (
+                  <RoleManagement 
+                    members={members} 
+                    onRoleChange={async (userId, newRole: "member" | "coach" | "admin") => {
+                      const { error } = await supabase.from("user_roles").upsert({ user_id: userId, role: newRole }, { onConflict: "user_id, role" });
+                      if (error) toast.error(error.message);
+                      else {
+                        toast.success("Role updated successfully!");
+                        loadData(false);
+                      }
+                    }}
+                  />
+                )}
+              </div>
+            )}
+
+            {/* Member Detail Panel */}
+            {selectedMember && (
+              <Card className="rounded-2xl border-none shadow-lg bg-white dark:bg-slate-900 p-6 mt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-brand flex items-center justify-center text-white font-bold">
+                      {selectedMember.full_name.slice(0,2).toUpperCase()}
+                    </div>
+                    <div>
+                      <h3 className="font-display font-bold text-lg">{selectedMember.full_name}</h3>
+                      <p className="text-[11px] text-muted-foreground">{selectedMember.role}</p>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedMember(null)} className="rounded-xl">
+                    ✕
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="p-3 rounded-xl bg-secondary/50">
+                    <p className="text-[10px] font-bold uppercase text-muted-foreground">Status</p>
+                    <p className="font-bold text-sm mt-1">{selectedMember.membership_status}</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-secondary/50">
+                    <p className="text-[10px] font-bold uppercase text-muted-foreground">Loyalty Points</p>
+                    <p className="font-bold text-sm mt-1 text-amber-600">{selectedMember.loyalty_points}</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-secondary/50">
+                    <p className="text-[10px] font-bold uppercase text-muted-foreground">Total Spent</p>
+                    <p className="font-bold text-sm mt-1">${selectedMember.total_spent}</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-secondary/50">
+                    <p className="text-[10px] font-bold uppercase text-muted-foreground">Last Check-in</p>
+                    <p className="font-bold text-sm mt-1">{selectedMember.last_checkin}</p>
+                  </div>
+                </div>
+              </Card>
+            )}
+          </div>
+        </main>
+      </div>
+    );
 }
 
-function StatCardUltra({ label, value, change, trend, icon: Icon, color }: any) {
+function StatCardUltra({ label, value, icon: Icon, color }: any) {
   const colorMap: any = {
     blue: "bg-blue-500",
     purple: "bg-purple-500",
     amber: "bg-amber-500",
     emerald: "bg-emerald-500",
   };
-  
+
   return (
-    <Card className="rounded-[32px] border-none shadow-premium bg-white dark:bg-slate-900 p-8 group hover:scale-[1.02] transition-all duration-300">
-      <div className="flex items-center justify-between mb-6">
-        <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg transform -rotate-3 group-hover:rotate-0 transition-transform duration-500", colorMap[color])}>
-          <Icon className="w-7 h-7" />
-        </div>
-        <div className={cn(
-          "flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider",
-          trend === "up" ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600"
-        )}>
-          {trend === "up" ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-          {change}
+    <Card className="rounded-2xl border-none shadow-lg bg-white dark:bg-slate-900 p-4 group hover:scale-[1.02] transition-all duration-300">
+      <div className="flex items-center justify-between mb-3">
+        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg", colorMap[color])}>
+          <Icon className="w-5 h-5" />
         </div>
       </div>
       <div>
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 mb-1">{label}</p>
-        <p className="text-4xl font-display font-black tracking-tight">{value}</p>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">{label}</p>
+        <p className="text-2xl font-display font-black">{value}</p>
       </div>
     </Card>
   );
@@ -445,15 +494,82 @@ function RetentionItem({ label, value, color }: { label: string, value: number, 
 function CustomTooltip({ active, payload }: any) {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-2xl border border-slate-800 animate-pop">
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{payload[0].payload.name}</p>
-        <p className="text-xl font-black">${payload[0].value.toLocaleString()}</p>
-        <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-400 mt-1">
-          <Activity className="w-3 h-3" />
-          +12% Performance
-        </div>
+      <div className="bg-slate-900 text-white p-3 rounded-xl shadow-xl border border-slate-800 animate-pop">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">{payload[0].payload.name}</p>
+        <p className="text-lg font-black">${payload[0].value.toLocaleString()}</p>
       </div>
     );
   }
   return null;
 }
+
+function RoleManagement({ members, onRoleChange }: { members: Member[], onRoleChange: (id: string, role: "member" | "coach" | "admin") => Promise<void> }) {
+  const [busy, setBusy] = useState<string | null>(null);
+
+  return (
+    <div className="space-y-6 animate-pop">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-xl font-bold">User Role Management</h3>
+          <p className="text-sm text-muted-foreground">Manage access levels for all studio users</p>
+        </div>
+      </div>
+
+      <div className="glass-card rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <Table>
+          <TableHeader className="bg-slate-50 dark:bg-slate-800/50">
+            <TableRow>
+              <TableHead className="pl-6">User</TableHead>
+              <TableHead>Current Role</TableHead>
+              <TableHead className="text-right pr-6">Assign New Role</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {members.map(m => (
+              <TableRow key={m.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                <TableCell className="pl-6">
+                  <div className="flex flex-col">
+                    <span className="font-bold">{m.full_name}</span>
+                    <span className="text-xs text-muted-foreground">{m.email}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge className={cn(
+                    "uppercase text-[9px] font-black px-2.5 py-0.5 rounded-lg border-none shadow-sm",
+                    m.role === "admin" ? "bg-violet-500 text-white" : m.role === "coach" ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-500"
+                  )}>
+                    {m.role}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right pr-6">
+                  <div className="flex items-center justify-end gap-2">
+                    {(["member", "coach", "admin"] as const).map(r => (
+                      <button
+                        key={r}
+                        disabled={busy === m.id || m.role === r}
+                        onClick={async () => {
+                          setBusy(m.id);
+                          await onRoleChange(m.id, r);
+                          setBusy(null);
+                        }}
+                        className={cn(
+                          "px-3 py-1.5 rounded-xl text-[10px] font-black transition-all",
+                          m.role === r 
+                            ? "bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
+                            : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-primary hover:text-primary hover:shadow-md active:scale-95"
+                        )}
+                      >
+                        {r.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+

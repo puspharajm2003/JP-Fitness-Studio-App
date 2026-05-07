@@ -20,24 +20,34 @@ export default function Attendance() {
   };
   useEffect(() => { load(); }, [user]);
 
-  const checkIn = async () => {
-    const { error } = await supabase.from("attendance").insert({ user_id: user!.id });
-    if (error) { toast.error(error.message); return; }
-    // Award loyalty points
-    const newPoints = (profile?.loyalty_points || 0) + 10;
-    await supabase.from("profiles").update({ loyalty_points: newPoints }).eq("id", user!.id);
-    // Log point change
-    await supabase.from("loyalty_point_logs").insert({
-      user_id: user!.id,
-      points_change: 10,
-      reason: "check-in",
-      related_id: null,
-    });
-    // Refresh profile to update loyalty_points in UI
-    await refresh();
-    toast.success(`Checked in! +10 loyalty points (Total: ${newPoints} pts)`);
-    load();
-  };
+   const checkIn = async () => {
+     if (!user) return;
+     const t = new Date().toISOString().slice(0, 10);
+     const { error } = await supabase.from("attendance").insert({ user_id: user.id, date: t });
+     if (error) {
+       // Handle unique constraint violation (duplicate check-in for today)
+       if (error.code === '23505') {
+         toast("Already checked in today! Come back tomorrow 💪", { icon: "✅" });
+       } else {
+         toast.error(error.message);
+       }
+       return;
+     }
+     // Award loyalty points
+     const newPoints = (profile?.loyalty_points || 0) + 10;
+     await supabase.from("profiles").update({ loyalty_points: newPoints }).eq("id", user.id);
+     // Log point change
+     await supabase.from("loyalty_point_logs").insert({
+       user_id: user.id,
+       points_change: 10,
+       reason: "check-in",
+       related_id: null,
+     });
+     // Refresh profile to update loyalty_points in UI
+     await refresh();
+     toast.success(`Checked in! +10 loyalty points (Total: ${newPoints} pts)`);
+     load();
+   };
 
   // Build last 30-day calendar grid
   const days = Array.from({length: 30}, (_, i) => {

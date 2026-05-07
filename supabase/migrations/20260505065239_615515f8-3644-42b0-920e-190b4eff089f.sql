@@ -12,7 +12,7 @@ CREATE TABLE public.user_roles (
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 
 CREATE OR REPLACE FUNCTION public.has_role(_user_id UUID, _role app_role)
-RETURNS BOOLEAN LANGUAGE SQL STABLE SECURITY DEFINER SET search_path = public
+RETURNS BOOLEAN LANGUAGE SQL STABLE SECURITY INVOKER SET search_path = public
 AS $$ SELECT EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = _user_id AND role = _role) $$;
 
 CREATE POLICY "Users view own roles" ON public.user_roles FOR SELECT USING (auth.uid() = user_id OR public.has_role(auth.uid(), 'admin'));
@@ -56,7 +56,8 @@ CREATE TABLE public.packages (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE public.packages ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "own packages" ON public.packages FOR ALL USING (auth.uid() = user_id OR public.has_role(auth.uid(),'coach')) WITH CHECK (auth.uid() = user_id OR public.has_role(auth.uid(),'coach'));
+CREATE POLICY "own packages" ON public.packages FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "coach manage packages" ON public.packages FOR SELECT USING (public.has_role(auth.uid(), 'coach')) WITH CHECK (public.has_role(auth.uid(), 'coach'));
 
 CREATE TABLE public.attendance (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -65,7 +66,8 @@ CREATE TABLE public.attendance (
   date DATE NOT NULL DEFAULT CURRENT_DATE
 );
 ALTER TABLE public.attendance ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "own attendance" ON public.attendance FOR ALL USING (auth.uid() = user_id OR public.has_role(auth.uid(),'coach')) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own attendance" ON public.attendance FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "coach manage attendance" ON public.attendance FOR SELECT USING (public.has_role(auth.uid(), 'coach')) WITH CHECK (public.has_role(auth.uid(), 'coach'));
 
 CREATE TABLE public.weight_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -75,7 +77,8 @@ CREATE TABLE public.weight_logs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE public.weight_logs ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "own weight" ON public.weight_logs FOR ALL USING (auth.uid() = user_id OR public.has_role(auth.uid(),'coach')) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own weight" ON public.weight_logs FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "coach manage weight" ON public.weight_logs FOR SELECT USING (public.has_role(auth.uid(), 'coach')) WITH CHECK (public.has_role(auth.uid(), 'coach'));
 
 CREATE TABLE public.measurement_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -89,7 +92,8 @@ CREATE TABLE public.measurement_logs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE public.measurement_logs ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "own meas" ON public.measurement_logs FOR ALL USING (auth.uid() = user_id OR public.has_role(auth.uid(),'coach')) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own meas" ON public.measurement_logs FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "coach manage meas" ON public.measurement_logs FOR SELECT USING (public.has_role(auth.uid(), 'coach')) WITH CHECK (public.has_role(auth.uid(), 'coach'));
 
 CREATE TABLE public.diet_plans (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -101,7 +105,8 @@ CREATE TABLE public.diet_plans (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE public.diet_plans ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "own diet" ON public.diet_plans FOR ALL USING (auth.uid() = user_id OR public.has_role(auth.uid(),'coach')) WITH CHECK (auth.uid() = user_id OR public.has_role(auth.uid(),'coach'));
+CREATE POLICY "own diet" ON public.diet_plans FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "coach manage diet" ON public.diet_plans FOR SELECT USING (public.has_role(auth.uid(), 'coach')) WITH CHECK (public.has_role(auth.uid(), 'coach'));
 
 CREATE TABLE public.workout_plans (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -112,7 +117,8 @@ CREATE TABLE public.workout_plans (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE public.workout_plans ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "own wplan" ON public.workout_plans FOR ALL USING (auth.uid() = user_id OR public.has_role(auth.uid(),'coach')) WITH CHECK (auth.uid() = user_id OR public.has_role(auth.uid(),'coach'));
+CREATE POLICY "own wplan" ON public.workout_plans FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "coach manage wplan" ON public.workout_plans FOR SELECT USING (public.has_role(auth.uid(), 'coach')) WITH CHECK (public.has_role(auth.uid(), 'coach'));
 
 CREATE TABLE public.workout_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -205,11 +211,12 @@ CREATE TABLE public.redemptions (
   redeemed_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE public.redemptions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "own redemp" ON public.redemptions FOR ALL USING (auth.uid() = user_id OR public.has_role(auth.uid(),'coach')) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own redemp" ON public.redemptions FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "coach manage redemp" ON public.redemptions FOR SELECT USING (public.has_role(auth.uid(), 'coach')) WITH CHECK (public.has_role(auth.uid(), 'coach'));
 
 -- Auto profile + role on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY INVOKER SET search_path = public
 AS $$
 BEGIN
   INSERT INTO public.profiles (id, full_name, phone)
@@ -229,8 +236,23 @@ DECLARE
   _uid UUID := auth.uid();
   _balance INT;
   _id UUID;
+  _reward_record RECORD;
 BEGIN
   IF _uid IS NULL THEN RAISE EXCEPTION 'Not authenticated'; END IF;
+  
+  -- Validate reward exists and cost matches
+  SELECT * INTO _reward_record FROM public.rewards 
+  WHERE name = _reward_name AND is_active = true;
+  
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Invalid reward: %', _reward_name;
+  END IF;
+  
+  IF _reward_record.cost <> _points_cost THEN
+    RAISE EXCEPTION 'Invalid points cost for reward %: expected %, got %', 
+      _reward_name, _reward_record.cost, _points_cost;
+  END IF;
+  
   SELECT loyalty_points INTO _balance FROM public.profiles WHERE id = _uid FOR UPDATE;
   IF _balance < _points_cost THEN RAISE EXCEPTION 'Insufficient points'; END IF;
   UPDATE public.profiles SET loyalty_points = loyalty_points - _points_cost WHERE id = _uid;

@@ -16,7 +16,7 @@ interface Member {
   email: string;
   full_name: string;
   phone: string;
-  role: string;
+  role: "member" | "coach" | "admin";
   loyalty_points: number;
   package_status?: string;
   package_end?: string;
@@ -71,7 +71,7 @@ export default function AdminCRM() {
           email: (p as any).email || "",
           full_name: p.full_name || "Unknown",
           phone: p.phone || "",
-          role: roleMap.get(p.id) || "member",
+          role: (roleMap.get(p.id) as "member" | "coach" | "admin") || "member",
           loyalty_points: p.loyalty_points || 0,
           package_status: pkg?.status || "none",
           package_end: pkg?.end_date,
@@ -106,7 +106,7 @@ export default function AdminCRM() {
     return () => clearInterval(id);
   }, [load]);
 
-  const assignRole = async (userId: string, role: string) => {
+  const assignRole = async (userId: string, role: "member" | "coach" | "admin") => {
     try {
       await supabase.from("user_roles").upsert({ user_id: userId, role });
       toast.success(`Role updated to ${role}`);
@@ -233,7 +233,7 @@ export default function AdminCRM() {
                     <td>
                       <select
                         value={m.role}
-                        onChange={(e) => assignRole(m.id, e.target.value as any)}
+                        onChange={(e) => assignRole(m.id, e.target.value as "member" | "coach" | "admin")}
                         className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border-none text-[11px] font-bold outline-none focus:ring-2 focus:ring-primary/20"
                       >
                         <option value="member">Member</option>

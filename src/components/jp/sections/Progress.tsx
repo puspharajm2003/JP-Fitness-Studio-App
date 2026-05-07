@@ -2,7 +2,14 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/providers/AuthProvider";
 import { useProfile } from "@/lib/useProfile";
-import { Plus, TrendingDown, TrendingUp, Ruler, Scale, Target, ArrowDown, ArrowUp, Minus, Zap } from "lucide-react";
+import { 
+  Plus, TrendingDown, TrendingUp, Ruler, Scale, Target, 
+  ArrowDown, ArrowUp, Minus, Zap, Sparkles,
+  Activity, ArrowRight, ChevronDown, ChevronUp, Apple, 
+  Heart, AlertTriangle, Info, Moon, Sun, User, 
+  Calendar, Weight, Calculator, Shield,
+  Trash2, History, RefreshCw, Share2, Download, Save
+} from "lucide-react";
 import { toast } from "sonner";
 
 // SVG body silhouette component — renders male or female based on gender
@@ -199,6 +206,21 @@ export default function Progress() {
     setShowDailyGoals(false);
   };
 
+  // BMI & Healthy Weight Range calculations
+  const heightM = (profile?.height_cm || 0) / 100;
+  const bmi = latest && heightM > 0 ? (latest / (heightM * heightM)).toFixed(1) : null;
+  const healthyMin = heightM > 0 ? (18.5 * heightM * heightM).toFixed(1) : null;
+  const healthyMax = heightM > 0 ? (25 * heightM * heightM).toFixed(1) : null;
+
+  const getBmiStatus = (bmiVal: number) => {
+    if (bmiVal < 18.5) return { label: "Underweight", color: "text-blue-500" };
+    if (bmiVal < 25) return { label: "Normal", color: "text-emerald-500" };
+    if (bmiVal < 30) return { label: "Overweight", color: "text-amber-500" };
+    return { label: "Obese", color: "text-rose-500" };
+  };
+
+  const bmiStatus = bmi ? getBmiStatus(parseFloat(bmi)) : null;
+
   return (
     <div className="space-y-6">
       {/* Stats cards */}
@@ -319,13 +341,59 @@ export default function Progress() {
 
       {/* Body Silhouette Visualization */}
       {weights.length >= 2 && target && (
-        <BodySilhouette
-          gender={profile?.gender || null}
-          progress={progressPercent}
-          startWeight={start}
-          currentWeight={latest}
-          targetWeight={target}
-        />
+        <div className="grid md:grid-cols-2 gap-4 animate-pop">
+          <BodySilhouette
+            gender={profile?.gender || null}
+            progress={progressPercent}
+            startWeight={start}
+            currentWeight={latest}
+            targetWeight={target}
+          />
+          
+          {/* Health Insights */}
+          <div className="glass-card rounded-3xl p-6 border-none shadow-xl bg-white dark:bg-slate-900/50 flex flex-col">
+            <h3 className="font-display font-bold text-lg mb-4 flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-amber-500" />
+              Health Metrics
+            </h3>
+            <div className="grid grid-cols-2 gap-6 mb-6">
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">BMI Status</p>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-3xl font-black">{bmi || "--"}</p>
+                  {bmiStatus && (
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary ${bmiStatus.color}`}>
+                      {bmiStatus.label}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Healthy Range</p>
+                <p className="text-xl font-extrabold">
+                  {healthyMin && healthyMax ? `${healthyMin}-${healthyMax}` : "--"}
+                  <span className="text-xs font-normal text-muted-foreground ml-1">kg</span>
+                </p>
+                <p className="text-[8px] text-muted-foreground italic">Standard for {profile?.height_cm || "—"} cm</p>
+              </div>
+            </div>
+            
+            <div className="mt-auto pt-6 border-t border-border/50">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-bold">Goal Progress</p>
+                <p className="text-xs font-black text-primary">
+                  {remaining !== null ? `${Math.abs(remaining).toFixed(1)} kg remaining` : "--"}
+                </p>
+              </div>
+              <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-brand transition-all duration-1000" 
+                  style={{ width: `${progressPercent}%` }} 
+                />
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Weight chart */}
@@ -364,6 +432,9 @@ export default function Progress() {
         )}
       </div>
 
+      {/* Comprehensive BMI Tracker (History & Analytics) */}
+      <BmiCalculator />
+
       {/* Measurements section */}
       <div className="glass-card rounded-2xl p-6">
         <div className="flex items-center justify-between mb-4">
@@ -393,6 +464,439 @@ export default function Progress() {
           </table>
         </div>
       </div>
+    </div>
+  );
+}
+
+interface SavedEntry {
+  id: string;
+  date: string;
+  bmi: number;
+  category: string;
+  height: number;
+  weight: number;
+  unitSystem: string;
+}
+
+interface BmiResult {
+  value: number;
+  category: string;
+  color: string;
+  bgColor: string;
+  range: string;
+  healthyWeightMin: number;
+  healthyWeightMax: number;
+  bmiPrime: number;
+  ponderalIndex: number;
+}
+
+function BmiCalculator() {
+  // Unit system state
+  const [unitSystem, setUnitSystem] = useState<"metric" | "imperial">("metric");
+  
+  // Input states
+  const [age, setAge] = useState<number>(23);
+  const [gender, setGender] = useState<"male" | "female">("male");
+  
+  // Metric units
+  const [heightCm, setHeightCm] = useState<number>(173);
+  const [weightKg, setWeightKg] = useState<number>(73);
+  
+  // Imperial units
+  const [heightFeet, setHeightFeet] = useState<number>(5);
+  const [heightInches, setHeightInches] = useState<number>(8);
+  const [weightLbs, setWeightLbs] = useState<number>(160);
+  
+  // Result state
+  const [result, setResult] = useState<BmiResult | null>(null);
+  
+  // Saved calculations history
+  const [savedEntries, setSavedEntries] = useState<SavedEntry[]>([]);
+  const [showHistory, setShowHistory] = useState<boolean>(false);
+  
+  // Expanded info sections
+  const [expandedSections, setExpandedSections] = useState({
+    risks: false,
+    limitations: false,
+    formula: false,
+  });
+  
+  // Load saved entries from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem("bmi_calculator_history");
+    if (stored) {
+      try {
+        setSavedEntries(JSON.parse(stored));
+      } catch (e) {}
+    }
+  }, []);
+  
+  // Save to localStorage whenever entries change
+  useEffect(() => {
+    localStorage.setItem("bmi_calculator_history", JSON.stringify(savedEntries));
+  }, [savedEntries]);
+  
+  // Compute BMI whenever inputs change
+  useEffect(() => {
+    let heightMeters: number;
+    let weightKgValue: number;
+    
+    if (unitSystem === "metric") {
+      heightMeters = heightCm / 100;
+      weightKgValue = weightKg;
+    } else {
+      const totalInches = heightFeet * 12 + heightInches;
+      heightMeters = totalInches * 0.0254;
+      weightKgValue = weightLbs * 0.453592;
+    }
+    
+    if (heightMeters > 0 && weightKgValue > 0) {
+      const bmi = weightKgValue / (heightMeters * heightMeters);
+      const category = getBmiCategory(bmi);
+      const color = getBmiColor(category);
+      const bgColor = getBmiBgColor(category);
+      
+      const healthyWeightMin = 18.5 * (heightMeters * heightMeters);
+      const healthyWeightMax = 25 * (heightMeters * heightMeters);
+      const bmiPrime = bmi / 25;
+      const ponderalIndex = weightKgValue / Math.pow(heightMeters, 3);
+      
+      setResult({
+        value: parseFloat(bmi.toFixed(1)),
+        category,
+        color,
+        bgColor,
+        range: getBmiRange(bmi),
+        healthyWeightMin: parseFloat(healthyWeightMin.toFixed(1)),
+        healthyWeightMax: parseFloat(healthyWeightMax.toFixed(1)),
+        bmiPrime: parseFloat(bmiPrime.toFixed(2)),
+        ponderalIndex: parseFloat(ponderalIndex.toFixed(1)),
+      });
+    } else {
+      setResult(null);
+    }
+  }, [unitSystem, heightCm, weightKg, heightFeet, heightInches, weightLbs]);
+  
+  const getBmiCategory = (bmi: number): string => {
+    if (bmi < 16) return "Severe Thinness";
+    if (bmi < 17) return "Moderate Thinness";
+    if (bmi < 18.5) return "Mild Thinness";
+    if (bmi < 25) return "Normal";
+    if (bmi < 30) return "Overweight";
+    if (bmi < 35) return "Obese Class I";
+    if (bmi < 40) return "Obese Class II";
+    return "Obese Class III";
+  };
+  
+  const getBmiColor = (category: string): string => {
+    switch (category) {
+      case "Severe Thinness": return "text-rose-600";
+      case "Moderate Thinness": return "text-orange-500";
+      case "Mild Thinness": return "text-amber-500";
+      case "Normal": return "text-emerald-600";
+      case "Overweight": return "text-amber-500";
+      case "Obese Class I": return "text-orange-500";
+      case "Obese Class II": return "text-rose-500";
+      case "Obese Class III": return "text-red-600";
+      default: return "text-slate-600";
+    }
+  };
+  
+  const getBmiBgColor = (category: string): string => {
+    switch (category) {
+      case "Severe Thinness": return "bg-rose-50 dark:bg-rose-950/30";
+      case "Moderate Thinness": return "bg-orange-50 dark:bg-orange-950/30";
+      case "Mild Thinness": return "bg-amber-50 dark:bg-amber-950/30";
+      case "Normal": return "bg-emerald-50 dark:bg-emerald-950/30";
+      case "Overweight": return "bg-amber-50 dark:bg-amber-950/30";
+      case "Obese Class I": return "bg-orange-50 dark:bg-orange-950/30";
+      case "Obese Class II": return "bg-rose-50 dark:bg-rose-950/30";
+      case "Obese Class III": return "bg-red-50 dark:bg-red-950/30";
+      default: return "bg-slate-50 dark:bg-slate-800";
+    }
+  };
+  
+  const getBmiRange = (bmi: number): string => {
+    if (bmi < 18.5) return "Underweight range";
+    if (bmi < 25) return "Healthy weight range";
+    if (bmi < 30) return "Overweight range";
+    return "Obese range";
+  };
+  
+  const getIndicatorPosition = (bmi: number): number => {
+    const minBmi = 10;
+    const maxBmi = 45;
+    const clamped = Math.min(Math.max(bmi, minBmi), maxBmi);
+    return ((clamped - minBmi) / (maxBmi - minBmi)) * 100;
+  };
+  
+  const getGaugeRotation = (bmi: number): number => {
+    const minBmi = 10;
+    const maxBmi = 45;
+    const clamped = Math.min(Math.max(bmi, minBmi), maxBmi);
+    const percent = (clamped - minBmi) / (maxBmi - minBmi);
+    return -90 + (percent * 180);
+  };
+  
+  const toggleSection = (section: keyof typeof expandedSections) => {
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+  
+  const saveCurrentResult = () => {
+    if (!result) return;
+    
+    let heightValue: number;
+    let weightValue: number;
+    if (unitSystem === "metric") {
+      heightValue = heightCm;
+      weightValue = weightKg;
+    } else {
+      heightValue = heightFeet * 12 + heightInches;
+      weightValue = weightLbs;
+    }
+    
+    const newEntry: SavedEntry = {
+      id: Date.now().toString(),
+      date: new Date().toLocaleString(),
+      bmi: result.value,
+      category: result.category,
+      height: heightValue,
+      weight: weightValue,
+      unitSystem,
+    };
+    
+    setSavedEntries(prev => [newEntry, ...prev].slice(0, 10)); // Keep last 10
+  };
+  
+  const deleteEntry = (id: string) => {
+    setSavedEntries(prev => prev.filter(entry => entry.id !== id));
+  };
+  
+  const clearHistory = () => {
+    setSavedEntries([]);
+  };
+  
+  const resetForm = () => {
+    setAge(23);
+    setGender("male");
+    if (unitSystem === "metric") {
+      setHeightCm(173);
+      setWeightKg(73);
+    } else {
+      setHeightFeet(5);
+      setHeightInches(8);
+      setWeightLbs(160);
+    }
+  };
+  
+  const formatEntryValue = (entry: SavedEntry) => {
+    if (entry.unitSystem === "metric") {
+      return `${entry.height} cm, ${entry.weight} kg`;
+    } else {
+      const feet = Math.floor(entry.height / 12);
+      const inches = entry.height % 12;
+      return `${feet}'${inches}", ${entry.weight} lbs`;
+    }
+  };
+  
+  const BmiGauge = ({ bmi }: { bmi: number }) => {
+    const rotation = getGaugeRotation(bmi);
+    return (
+      <div className="relative w-36 h-36 mx-auto">
+        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+          <path
+            d="M 10 50 A 40 40 0 0 1 90 50"
+            fill="none"
+            stroke="#e2e8f0"
+            strokeWidth="8"
+            strokeLinecap="round"
+            className="dark:stroke-slate-700"
+          />
+          <path
+            d="M 10 50 A 40 40 0 0 1 90 50"
+            fill="none"
+            stroke="url(#bmiGradientAdvanced)"
+            strokeWidth="8"
+            strokeLinecap="round"
+            strokeDasharray={`${(rotation + 90) / 180 * Math.PI * 40} 500`}
+            className="transition-all duration-500"
+          />
+          <defs>
+            <linearGradient id="bmiGradientAdvanced" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#f43f5e" />
+              <stop offset="30%" stopColor="#f59e0b" />
+              <stop offset="50%" stopColor="#10b981" />
+              <stop offset="70%" stopColor="#f59e0b" />
+              <stop offset="100%" stopColor="#ef4444" />
+            </linearGradient>
+          </defs>
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-2xl font-black">{bmi}</span>
+          <span className="text-[10px] text-slate-500">BMI</span>
+        </div>
+      </div>
+    );
+  };
+  
+  return (
+    <div className="glass-card rounded-3xl p-6 md:p-8 space-y-8 mt-8 animate-pop">
+      <div className="text-center mb-4">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-sm font-medium mb-4">
+          <Heart className="w-4 h-4" />
+          Advanced Tracker
+        </div>
+        <h2 className="text-2xl md:text-3xl font-black bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent">
+          BMI History & Analytics
+        </h2>
+      </div>
+      
+      <div className="bg-white dark:bg-slate-900/50 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xl">
+        <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
+          {[
+            { value: "metric", label: "Metric", icon: Ruler },
+            { value: "imperial", label: "Imperial", icon: Weight },
+          ].map((tab) => (
+            <button
+              key={tab.value}
+              onClick={() => setUnitSystem(tab.value as any)}
+              className={`flex-1 flex items-center justify-center gap-2 py-4 px-4 font-semibold text-sm transition-all ${
+                unitSystem === tab.value
+                  ? "border-b-2 border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-white dark:bg-slate-900"
+                  : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
+              }`}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        
+        <div className="p-6 md:p-8">
+          <div className="grid md:grid-cols-2 gap-6 mb-8">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-black uppercase text-muted-foreground mb-2 flex items-center gap-2 tracking-widest">
+                  <Calendar className="w-4 h-4 text-emerald-500" />
+                  Age
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={age}
+                    onChange={(e) => setAge(Math.min(120, Math.max(2, parseInt(e.target.value) || 2)))}
+                    className="w-full px-4 py-3 rounded-xl bg-secondary border border-border text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-400/20 outline-none transition"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-400">y</span>
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black uppercase text-muted-foreground mb-2 flex items-center gap-2 tracking-widest">
+                  <User className="w-4 h-4 text-emerald-500" />
+                  Gender
+                </label>
+                <div className="flex gap-2">
+                  <button onClick={() => setGender("male")} className={`flex-1 py-3 rounded-xl font-bold text-xs transition-all ${gender === "male" ? "bg-emerald-500 text-white shadow-lg" : "bg-secondary text-muted-foreground"}`}>M</button>
+                  <button onClick={() => setGender("female")} className={`flex-1 py-3 rounded-xl font-bold text-xs transition-all ${gender === "female" ? "bg-emerald-500 text-white shadow-lg" : "bg-secondary text-muted-foreground"}`}>F</button>
+                </div>
+              </div>
+            </div>
+            
+            {unitSystem === "metric" ? (
+              <>
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-muted-foreground mb-2 flex items-center gap-2 tracking-widest">
+                    <Ruler className="w-4 h-4 text-emerald-500" />
+                    Height: {heightCm} cm
+                  </label>
+                  <input type="range" min="100" max="250" value={heightCm} onChange={(e) => setHeightCm(parseInt(e.target.value))} className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-emerald-500" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-muted-foreground mb-2 flex items-center gap-2 tracking-widest">
+                    <Scale className="w-4 h-4 text-emerald-500" />
+                    Weight: {weightKg} kg
+                  </label>
+                  <input type="range" min="30" max="200" step="0.5" value={weightKg} onChange={(e) => setWeightKg(parseFloat(e.target.value))} className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-emerald-500" />
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-muted-foreground mb-2 flex items-center gap-2 tracking-widest">
+                    <Ruler className="w-4 h-4 text-emerald-500" />
+                    Height: {heightFeet}' {heightInches}"
+                  </label>
+                  <div className="space-y-2">
+                    <input type="range" min="3" max="7" value={heightFeet} onChange={(e) => setHeightFeet(parseInt(e.target.value))} className="w-full h-2 bg-secondary rounded-lg accent-emerald-500" />
+                    <input type="range" min="0" max="11" value={heightInches} onChange={(e) => setHeightInches(parseInt(e.target.value))} className="w-full h-2 bg-secondary rounded-lg accent-emerald-500" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-muted-foreground mb-2 flex items-center gap-2 tracking-widest">
+                    <Scale className="w-4 h-4 text-emerald-500" />
+                    Weight: {weightLbs} lbs
+                  </label>
+                  <input type="range" min="60" max="450" value={weightLbs} onChange={(e) => setWeightLbs(parseInt(e.target.value))} className="w-full h-2 bg-secondary rounded-lg accent-emerald-500" />
+                </div>
+              </>
+            )}
+          </div>
+          
+          <div className="flex justify-end gap-3 mb-6">
+            <button onClick={resetForm} className="px-4 py-2 rounded-xl bg-secondary text-muted-foreground text-xs font-bold flex items-center gap-2 transition hover:bg-slate-200 dark:hover:bg-slate-700"><RefreshCw className="w-3 h-3" /> Reset</button>
+            {result && <button onClick={saveCurrentResult} className="px-4 py-2 rounded-xl bg-emerald-500 text-white text-xs font-bold flex items-center gap-2 shadow-lg hover:scale-105 active:scale-95 transition"><Save className="w-3 h-3" /> Save Log</button>}
+            <button onClick={() => setShowHistory(!showHistory)} className="px-4 py-2 rounded-xl bg-secondary text-emerald-600 text-xs font-bold flex items-center gap-2 transition"><History className="w-3 h-3" /> {showHistory ? "Hide History" : "View History"}</button>
+          </div>
+          
+          {result && (
+            <div className={`rounded-2xl ${result.bgColor} p-6 md:p-8 border border-emerald-500/10 transition-all duration-300`}>
+              <div className="flex flex-col lg:flex-row lg:items-center gap-8">
+                <div className="flex-shrink-0">
+                  <BmiGauge bmi={result.value} />
+                </div>
+                <div className="flex-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Live Metric</p>
+                  <h2 className={`text-5xl font-black ${result.color} mt-1`}>{result.value}</h2>
+                  <p className={`text-lg font-bold ${result.color}`}>{result.category}</p>
+                  
+                  <div className="mt-4 space-y-2">
+                    <div className="relative h-2 bg-gradient-to-r from-rose-500 via-emerald-500 to-orange-500 rounded-full overflow-hidden">
+                      <div className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white border-2 border-slate-800 rounded-full shadow-lg transition-all" style={{ left: `${getIndicatorPosition(result.value)}%` }} />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3 mt-6 pt-4 border-t border-border/50">
+                    <div><p className="text-[9px] font-black text-muted-foreground uppercase">Healthy Weight</p><p className="font-bold text-xs">{result.healthyWeightMin} – {result.healthyWeightMax} kg</p></div>
+                    <div><p className="text-[9px] font-black text-muted-foreground uppercase">Ponderal Index</p><p className="font-bold text-xs">{result.ponderalIndex} kg/m³</p></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {showHistory && (
+        <div className="glass-card rounded-2xl p-6 animate-pop">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-display font-bold flex items-center gap-2"><History className="w-4 h-4 text-emerald-500" /> Recent Logs</h3>
+            {savedEntries.length > 0 && <button onClick={clearHistory} className="text-[10px] font-black uppercase text-rose-500 flex items-center gap-1 hover:underline"><Trash2 className="w-3 h-3" /> Clear All</button>}
+          </div>
+          {savedEntries.length === 0 ? <p className="text-xs text-muted-foreground text-center py-6">No saved logs yet.</p> : (
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
+              {savedEntries.map(entry => (
+                <div key={entry.id} className="flex items-center justify-between p-3 rounded-xl bg-secondary/50 border border-border/50">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center font-black text-emerald-600 text-xs">{entry.bmi}</div>
+                    <div><p className="text-xs font-bold">{entry.category}</p><p className="text-[9px] text-muted-foreground font-medium">{entry.date} • {formatEntryValue(entry)}</p></div>
+                  </div>
+                  <button onClick={() => deleteEntry(entry.id)} className="text-muted-foreground hover:text-rose-500 transition"><Trash2 className="w-4 h-4" /></button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

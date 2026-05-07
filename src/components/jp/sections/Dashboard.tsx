@@ -4,9 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/providers/AuthProvider";
 import { useProfile } from "@/lib/useProfile";
 import { today } from "@/lib/dateUtil";
-import { Activity, ClipboardCheck, Dumbbell, Flame, Footprints, GlassWater, MessageCircle, Moon, Scale, Sparkles, TrendingDown, Trophy, TrendingUp, CheckCircle } from "lucide-react";
+import { Activity, ClipboardCheck, Dumbbell, Flame, Footprints, GlassWater, MessageCircle, Moon, Scale, Sparkles, TrendingDown, Trophy, TrendingUp, CheckCircle, AlertCircle, X, Info, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import TrendsSection from "./TrendsSection";
+
+type SensorStatus = "idle" | "active" | "syncing" | "synced" | "error";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -15,7 +17,8 @@ export default function Dashboard() {
   const [pkg, setPkg] = useState<any>(null);
   const [deviceSteps, setDeviceSteps] = useState<number | null>(null);
   const [deviceSleep, setDeviceSleep] = useState<number | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [sensorStatus, setSensorStatus] = useState<SensorStatus>("idle");
+  const [showSensorModal, setShowSensorModal] = useState(false);
 
   const loadStats = useCallback(async () => {
     if (!user) return;
@@ -49,12 +52,9 @@ export default function Dashboard() {
     let sensor: any = null;
     try {
       if ("Accelerometer" in window) {
-        // Use a step counting approach based on accelerometer
-        // This is a simplified version — real step counting requires more filtering
         let stepCount = 0;
         let lastMagnitude = 0;
-        let threshold = 12;
-
+        const threshold = 12;
         sensor = new (window as any).Accelerometer({ frequency: 10 });
         sensor.addEventListener("reading", () => {
           const mag = Math.sqrt(sensor.x ** 2 + sensor.y ** 2 + sensor.z ** 2);
@@ -64,62 +64,72 @@ export default function Dashboard() {
           }
           lastMagnitude = mag;
         });
+        sensor.addEventListener("error", () => setSensorStatus("error"));
         sensor.start();
+        setSensorStatus("active");
+      } else {
+        setSensorStatus("error");
       }
     } catch {
-      // Sensor API not available — that's fine, use manual input
+      setSensorStatus("error");
     }
     return () => { if (sensor) try { sensor.stop(); } catch {} };
   }, []);
 
   // Estimate sleep from user's last known data
   useEffect(() => {
-    // Check if there's today's sleep log, if not, show a helpful indicator
-    if (stats.sleep > 0) {
-      setDeviceSleep(stats.sleep);
-    }
+    if (stats.sleep > 0) setDeviceSleep(stats.sleep);
   }, [stats.sleep]);
 
-  // Auto-sync device steps to Supabase
+  // Auto-sync device steps to Supabase every 30s
   useEffect(() => {
     if (deviceSteps && deviceSteps > 0 && user) {
       const syncTimeout = setTimeout(async () => {
-        setIsSyncing(true);
+        setSensorStatus("syncing");
         const totalSteps = stats.steps + deviceSteps;
         const { error } = await supabase.from("step_logs").upsert(
           { user_id: user.id, date: today(), steps: totalSteps },
           { onConflict: "user_id,date" }
         );
         if (!error) {
-          setTimeout(() => setIsSyncing(false), 2000);
+          setSensorStatus("synced");
+          setTimeout(() => setSensorStatus("active"), 3000);
         } else {
-          setIsSyncing(false);
+          setSensorStatus("error");
         }
-      }, 30000); // Sync every 30 seconds
+      }, 30000);
       return () => clearTimeout(syncTimeout);
     }
   }, [deviceSteps, user, stats.steps]);
 
-  const checkIn = async () => {
-    const { error } = await supabase.from("attendance").insert({ user_id: user!.id });
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    // Update points on profile
-    const newPoints = (profile?.loyalty_points || 0) + 10;
-    await supabase.from("profiles").update({ loyalty_points: newPoints }).eq("id", user!.id);
-    // Log point change
-    await supabase.from("loyalty_point_logs").insert({
-      user_id: user!.id,
-      points_change: 10,
-      reason: "check-in",
-      related_id: null,
-    });
-    // Refresh profile to update loyalty_points in UI
-    await refresh();
-    toast.success(`Checked in! +10 points (Total: ${newPoints} pts)`);
-  };
+   const checkIn = async () => {
+     if (!user) return;
+     const t = new Date().toISOString().slice(0, 10);
+     const { error } = await supabase.from("attendance").insert({ user_id: user.id, date: t });
+     if (error) {
+       // Handle unique constraint violation (duplicate check-in for today)
+       if (error.code === '23505') {
+         toast("Already checked in today! Come back tomorrow 💪", { icon: "✅" });
+       } else {
+         toast.error(error.message);
+       }
+       return;
+     }
+     // Update points on profile
+     const newPoints = (profile?.loyalty_points || 0) + 10;
+     await supabase.from("profiles").update({ loyalty_points: newPoints }).eq("id", user.id);
+     // Log point change
+     await supabase.from("loyalty_point_logs").insert({
+       user_id: user.id,
+       points_change: 10,
+       reason: "check-in",
+       related_id: null,
+     });
+     // Refresh profile to update loyalty_points in UI
+     await refresh();
+     toast.success(`Checked in! +10 points (Total: ${newPoints} pts)`);
+     loadStats();
+   };
 
   const coachMsg = () => {
     const phone = (profile?.coach_phone||"").replace(/\D/g,"");
@@ -173,16 +183,16 @@ export default function Dashboard() {
               <Footprints className="w-5 h-5 text-emerald-600" />
             </div>
             <div className="flex flex-col items-end gap-1">
-              {deviceSteps !== null && (
-                <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-semibold animate-pulse">
-                  LIVE
-                </span>
-              )}
-              {isSyncing && (
-                <span className="text-[8px] flex items-center gap-1 text-emerald-600 font-bold">
-                  <CheckCircle className="w-2.5 h-2.5" /> Synced
-                </span>
-              )}
+               {deviceSteps !== null && (
+                 <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-semibold animate-pulse">
+                   LIVE
+                 </span>
+               )}
+               {sensorStatus === "syncing" && (
+                 <span className="text-[8px] flex items-center gap-1 text-emerald-600 font-bold">
+                   <CheckCircle className="w-2.5 h-2.5" /> Synced
+                 </span>
+               )}
             </div>
           </div>
 

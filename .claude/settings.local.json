@@ -9,7 +9,12 @@
       "Bash(git commit *)",
       "Bash(git remote *)",
       "Bash(git branch *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(git rm *)",
+      "Bash(echo \".env\")",
+      "Bash(git pull *)",
+      "Bash(xargs grep -l \"attendance.*|.*diet_plans.*|.*food_logs.*|.*measurement_logs.*|.*medication_logs.*|.*medications.*|.*packages.*|.*profiles.*|.*redemptions.*|.*sleep_logs.*|.*step_logs.*|.*workout_plans\")",
+      "Bash(deno install *)"
     ]
   }
 }
