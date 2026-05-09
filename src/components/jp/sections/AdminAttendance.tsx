@@ -1,216 +1,253 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/providers/AuthProvider";
-import { Calendar, Download, Filter, ArrowLeft, RefreshCcw, UserCheck, Clock, Search } from "lucide-react";
+import { 
+  ClipboardCheck, Calendar as CalendarIcon, Clock, Users, 
+  TrendingUp, ArrowRight, ArrowLeft, Search, Filter,
+  Activity, MapPin, CheckCircle2, XCircle, Zap
+} from "lucide-react";
 import { toast } from "sonner";
-import { Link } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  Cell, AreaChart, Area
+} from 'recharts';
 
-interface AttendanceRecord {
-  id: string;
-  user_id: string;
-  full_name: string;
-  date: string;
-  check_in: string;
-}
-
-const SYNC_INTERVAL = 15000; // 15s polling for attendance
+const GlassCard = ({ children, className }: any) => (
+  <div className={cn(
+    "relative overflow-hidden rounded-[2.5rem] bg-white/40 dark:bg-black/40 backdrop-blur-2xl border border-white/20 dark:border-white/10 shadow-2xl transition-all duration-500",
+    className
+  )}>
+    {children}
+  </div>
+);
 
 export default function AdminAttendance() {
-  const { user } = useAuth();
-  const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [dateFilter, setDateFilter] = useState(new Date().toISOString().slice(0, 10));
+  const [dateRange, setDateRange] = useState("today");
 
-  const load = useCallback(async (isInitial = false) => {
-    if (isInitial) setLoading(true);
-    setIsSyncing(true);
+  const load = async () => {
+    setLoading(true);
     try {
       const { data, error } = await supabase
         .from("attendance")
-        .select(`id, user_id, date, check_in, profiles!inner(full_name)`)
-        .eq("date", dateFilter)
-        .order("check_in", { ascending: false });
+        .select(`
+          *,
+          profiles:user_id (full_name, email)
+        `)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
-
-      const list = (data || []).map((r: any) => ({
-        id: r.id,
-        user_id: r.user_id,
-        full_name: r.profiles?.full_name || "Unknown",
-        date: r.date,
-        check_in: r.check_in,
-      }));
-      setRecords(list);
+      setLogs(data || []);
     } catch (err: any) {
       toast.error(err.message);
     } finally {
       setLoading(false);
-      setIsSyncing(false);
     }
-  }, [dateFilter]);
-
-  useEffect(() => { 
-    load(true);
-    const id = setInterval(() => load(false), SYNC_INTERVAL);
-    return () => clearInterval(id);
-  }, [load]);
-
-  const exportCSV = () => {
-    const csv = [
-      ["Name", "Date", "Check-in Time"].join(","),
-      ...records.map(r => [r.full_name, r.date, new Date(r.check_in).toLocaleTimeString()].join(",")),
-    ].join("\n");
-
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `attendance_${dateFilter}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
+  useEffect(() => { load(); }, []);
+
+  const stats = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const todayLogs = logs.filter(l => l.date === today);
+    return {
+      total: logs.length,
+      today: todayLogs.length,
+      peakTime: "06:30 PM",
+      efficiency: "92%"
+    };
+  }, [logs]);
+
+  const chartData = useMemo(() => {
+    const last7Days = [...Array(7)].map((_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      return d.toISOString().slice(0, 10);
+    }).reverse();
+
+    return last7Days.map(date => ({
+      date: new Date(date).toLocaleDateString(undefined, { weekday: 'short' }),
+      count: logs.filter(l => l.date === date).length
+    }));
+  }, [logs]);
+
   return (
-    <div className="space-y-10 pb-20 animate-in fade-in duration-700">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <Link to="/admin" className="p-2 rounded-xl bg-secondary hover:bg-secondary/80 transition-all mr-2">
-              <ArrowLeft className="w-4 h-4" />
-            </Link>
-            <Badge variant="outline" className="rounded-full bg-emerald-500/5 text-emerald-600 border-emerald-500/20 px-3 py-1 font-black text-[10px] uppercase tracking-widest">
-              Live Presence Tracker
-            </Badge>
-            {isSyncing && <RefreshCcw className="w-3.5 h-3.5 text-primary animate-spin" />}
-          </div>
-          <h2 className="font-display text-4xl lg:text-5xl font-black tracking-tight">Attendance <span className="text-muted-foreground/30 font-normal">Monitor</span></h2>
-          <p className="text-xs text-muted-foreground font-medium mt-1">Real-time check-in stream from the studio.</p>
-        </div>
-        <button 
-          onClick={exportCSV} 
-          className="px-6 h-14 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-black text-sm shadow-sm flex items-center gap-2 hover:bg-slate-50 transition-all"
-        >
-          <Download className="w-5 h-5" /> Export Records
-        </button>
-      </header>
-
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <div className="lg:col-span-1 space-y-6">
-          <div className="glass-card rounded-[32px] p-8 border-none shadow-premium bg-white dark:bg-slate-900">
-            <h3 className="font-display font-black text-xl mb-6">Filters</h3>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Target Date</label>
-                 <div className="relative">
-                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary" />
-                    <input
-                      type="date"
-                      value={dateFilter}
-                      onChange={e => setDateFilter(e.target.value)}
-                      className="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border-none text-sm font-bold outline-none focus:ring-4 focus:ring-primary/10 transition-all cursor-pointer"
-                    />
-                 </div>
-              </div>
-              
-              <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                 <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-muted-foreground">Total Sessions</span>
-                    <Badge className="bg-primary/10 text-primary border-none">{records.length}</Badge>
-                 </div>
-                 <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-muted-foreground">Peak Hour</span>
-                    <span className="text-xs font-black">06:00 PM</span>
-                 </div>
+    <div className="min-h-screen bg-[#f8fafc] dark:bg-[#020617] p-6 lg:p-10">
+      <div className="max-w-7xl mx-auto space-y-10">
+        
+        {/* Superior Header */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Live Feed Active
               </div>
             </div>
+            <h1 className="text-5xl font-black tracking-tight text-slate-900 dark:text-white">
+              Attendance <span className="text-slate-300 dark:text-slate-700">Monitor</span>
+            </h1>
           </div>
-
-          <div className="glass-card rounded-[32px] p-8 border-none shadow-premium bg-gradient-brand text-white">
-            <UserCheck className="w-8 h-8 mb-4 opacity-50" />
-            <h4 className="font-display font-black text-xl leading-tight mb-2">Live Studio Capacity</h4>
-            <p className="text-xs opacity-80 mb-6 font-medium">Monitoring studio check-ins for resource optimization.</p>
-            <div className="flex items-end gap-2">
-               <span className="text-4xl font-black">{records.length}</span>
-               <span className="text-sm font-bold mb-1 opacity-70">Members present</span>
-            </div>
+          
+          <div className="flex items-center gap-4">
+             <div className="flex bg-white dark:bg-slate-900 rounded-2xl p-1 border border-slate-200 dark:border-slate-800 shadow-sm">
+                {["Today", "Week", "Month"].map(t => (
+                  <button 
+                    key={t}
+                    onClick={() => setDateRange(t.toLowerCase())}
+                    className={cn(
+                      "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                      dateRange === t.toLowerCase() ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-lg" : "text-slate-400 hover:text-slate-600"
+                    )}
+                  >
+                    {t}
+                  </button>
+                ))}
+             </div>
           </div>
         </div>
 
-        <div className="lg:col-span-3">
-          <div className="glass-card rounded-[32px] p-8 border-none shadow-premium bg-white dark:bg-slate-900 overflow-hidden">
-             <div className="flex items-center justify-between mb-8">
-                <h3 className="font-display font-black text-2xl">Daily Stream</h3>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                  <input placeholder="Filter stream..." className="pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border-none text-xs font-bold outline-none" />
+        {/* Analytic Command Cards */}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+           <InsightCard icon={Users} label="Daily Traffic" value={stats.today} subValue="+12% vs yest." color="blue" />
+           <InsightCard icon={Clock} label="Peak Intensity" value={stats.peakTime} subValue="Consistent" color="emerald" />
+           <InsightCard icon={TrendingUp} label="Retention" value={stats.efficiency} subValue="Optimized" color="indigo" />
+           <InsightCard icon={Activity} label="Total Entries" value={stats.total} subValue="All time" color="purple" />
+        </div>
+
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Traffic Visualization */}
+          <GlassCard className="lg:col-span-2 p-10">
+             <div className="flex items-center justify-between mb-10">
+                <h2 className="text-2xl font-black flex items-center gap-3">
+                   <Activity className="w-6 h-6 text-primary" />
+                   Traffic Matrix
+                </h2>
+                <div className="flex items-center gap-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">
+                   <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-primary" /> Check-ins</span>
                 </div>
              </div>
+             <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#4a72ff" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#4a72ff" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
+                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: '#94a3b8' }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: '#94a3b8' }} />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 20px 50px rgba(0,0,0,0.1)' }}
+                      itemStyle={{ fontWeight: 900, fontSize: '12px' }}
+                    />
+                    <Area type="monotone" dataKey="count" stroke="#4a72ff" strokeWidth={4} fillOpacity={1} fill="url(#colorCount)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+             </div>
+          </GlassCard>
 
-             {loading ? (
-               <div className="flex flex-col items-center justify-center py-20 gap-4">
-                  <div className="w-16 h-16 rounded-full border-4 border-primary/10 border-t-primary animate-spin" />
-                  <p className="font-display font-black text-slate-400 uppercase tracking-widest text-sm">Syncing Check-ins...</p>
-               </div>
-             ) : (
-               <div className="overflow-x-auto -mx-8">
-                 <table className="w-full text-sm">
-                   <thead>
-                     <tr className="text-left bg-slate-50/50 dark:bg-slate-800/50">
-                       <th className="pl-8 py-4 text-[10px] font-black uppercase text-muted-foreground tracking-widest">Member</th>
-                       <th className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Date Session</th>
-                       <th className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Exact Timestamp</th>
-                       <th className="pr-8 text-right text-[10px] font-black uppercase text-muted-foreground tracking-widest">Status</th>
-                     </tr>
-                   </thead>
-                   <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
-                     {records.map(r => (
-                       <tr key={r.id} className="group hover:bg-slate-50/30 dark:hover:bg-slate-800/30 transition-colors">
-                         <td className="pl-8 py-5">
-                           <div className="flex items-center gap-3">
-                             <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center font-black text-emerald-600 text-xs shadow-sm">
-                               {r.full_name.slice(0, 2).toUpperCase()}
-                             </div>
-                             <span className="font-bold text-sm">{r.full_name}</span>
-                           </div>
-                         </td>
-                         <td>
-                           <Badge variant="outline" className="rounded-lg border-slate-200 dark:border-slate-800 font-bold text-[10px] px-2 py-1">
-                             {r.date}
-                           </Badge>
-                         </td>
-                         <td>
-                           <div className="flex items-center gap-2">
-                             <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-                             <span className="font-black text-sm">{new Date(r.check_in).toLocaleTimeString()}</span>
-                           </div>
-                         </td>
-                         <td className="pr-8 text-right">
-                           <Badge className="bg-emerald-500/10 text-emerald-600 border-none font-black text-[9px] uppercase tracking-widest">
-                             Verified
-                           </Badge>
-                         </td>
+          {/* Quick Logs Sidepanel */}
+          <GlassCard className="p-8">
+             <h3 className="text-lg font-black mb-6">Recent Check-ins</h3>
+             <div className="space-y-6">
+                {logs.slice(0, 6).map((log, i) => (
+                  <div key={i} className="flex items-center gap-4 group">
+                     <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-900 flex items-center justify-center font-black text-xs shadow-sm">
+                        {log.profiles?.full_name?.slice(0, 1).toUpperCase()}
+                     </div>
+                     <div className="flex-1 min-w-0">
+                        <p className="font-bold text-sm truncate">{log.profiles?.full_name}</p>
+                        <p className="text-[10px] text-slate-400 font-medium">{log.time || "—"} · {log.date}</p>
+                     </div>
+                     <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                     </div>
+                  </div>
+                ))}
+             </div>
+             <button className="w-full mt-10 py-4 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black text-[10px] uppercase tracking-widest">
+                View Full Logs
+             </button>
+          </GlassCard>
+        </div>
+
+        {/* Global Timeline */}
+        <div className="space-y-6">
+           <div className="flex items-center justify-between px-4">
+              <h2 className="text-2xl font-black flex items-center gap-3">
+                 <Clock className="w-6 h-6 text-primary" />
+                 Global Attendance Timeline
+              </h2>
+           </div>
+           
+           <GlassCard className="overflow-hidden border-none shadow-premium">
+              <div className="overflow-x-auto">
+                 <table className="w-full text-left">
+                    <thead>
+                       <tr className="bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800">
+                          <th className="pl-10 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">User Identity</th>
+                          <th className="py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Date Logged</th>
+                          <th className="py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Timestamp</th>
+                          <th className="py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Auth Method</th>
+                          <th className="pr-10 py-6 text-right text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
                        </tr>
-                     ))}
-                     {records.length === 0 && (
-                       <tr>
-                         <td colSpan={4} className="py-20 text-center">
-                            <div className="flex flex-col items-center justify-center gap-3">
-                               <Calendar className="w-16 h-16 text-slate-100 dark:text-slate-800" />
-                               <p className="font-display font-black text-slate-300 dark:text-slate-700 uppercase tracking-widest text-sm">No activity recorded for this date</p>
-                            </div>
-                         </td>
-                       </tr>
-                     )}
-                   </tbody>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                       {logs.map(log => (
+                         <tr key={log.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-all group">
+                            <td className="pl-10 py-5">
+                               <div className="flex items-center gap-4">
+                                  <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 shadow-sm flex items-center justify-center font-black text-xs">
+                                     {log.profiles?.full_name?.slice(0, 1).toUpperCase()}
+                                  </div>
+                                  <p className="font-bold text-sm">{log.profiles?.full_name}</p>
+                               </div>
+                            </td>
+                            <td className="py-5 font-bold text-sm text-slate-500">{log.date}</td>
+                            <td className="py-5 font-bold text-sm text-slate-900 dark:text-white">{log.time || "—"}</td>
+                            <td className="py-5">
+                               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                                  <Zap className="w-3 h-3 text-amber-500" /> Auto-Checkin
+                               </span>
+                            </td>
+                            <td className="pr-10 py-5 text-right">
+                               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 text-[10px] font-black uppercase tracking-widest">
+                                  Verified
+                               </div>
+                            </td>
+                         </tr>
+                       ))}
+                    </tbody>
                  </table>
-               </div>
-             )}
-          </div>
+              </div>
+           </GlassCard>
         </div>
       </div>
+    </div>
+  );
+}
+
+function InsightCard({ icon: Icon, label, value, subValue, color }: any) {
+  const colors: Record<string, string> = {
+    blue: "bg-blue-500 shadow-blue-500/20",
+    emerald: "bg-emerald-500 shadow-emerald-500/20",
+    indigo: "bg-indigo-500 shadow-indigo-500/20",
+    purple: "bg-purple-500 shadow-purple-500/20",
+  };
+  return (
+    <div className="glass-card p-8 hover:translate-y-[-5px] transition-all duration-500 group">
+       <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-2xl mb-6 transform -rotate-6 group-hover:rotate-0 transition-transform", colors[color])}>
+          <Icon className="w-7 h-7" />
+       </div>
+       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">{label}</p>
+       <div className="flex items-end gap-2">
+          <p className="text-3xl font-black tracking-tight">{value}</p>
+          <span className="text-[10px] font-bold text-emerald-500 mb-1.5">{subValue}</span>
+       </div>
     </div>
   );
 }

@@ -34,9 +34,10 @@ export default function TrendsSection() {
           supabase.from("food_logs").select("date,kcal").eq("user_id", user.id).gte("date", since).order("date"),
         ]);
 
-        const agg = (rows: any[], key: string) => {
+        const agg = (res: any, key: string) => {
+          const data = res.data || [];
           const map: Record<string, number> = {};
-          (rows?.data || []).forEach((r: any) => { map[r.date] = (map[r.date] || 0) + (r[key] || 0); });
+          data.forEach((r: any) => { map[r.date] = (map[r.date] || 0) + (r[key] || 0); });
           return Object.entries(map).map(([date, value]) => ({ date, value }));
         };
 
@@ -84,7 +85,6 @@ export default function TrendsSection() {
           <div>
             <h4 className="text-sm font-semibold mb-2">Steps vs Goal</h4>
             <ChartContainer config={{ steps: { label: "Steps", color: "#3b82f6" } }}>
-              <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={stepTrend}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} />
@@ -92,7 +92,6 @@ export default function TrendsSection() {
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Line type="monotone" dataKey="value" stroke="var(--color-steps)" strokeWidth={2} dot={false} />
                 </LineChart>
-              </ResponsiveContainer>
             </ChartContainer>
             {stepTrend.length === 0 && (
               <p className="text-center py-4 text-muted-foreground text-sm">No step data yet.</p>
@@ -103,7 +102,6 @@ export default function TrendsSection() {
           <div>
             <h4 className="text-sm font-semibold mb-2">Sleep Hours</h4>
             <ChartContainer config={{ sleep: { label: "Hours", color: "#8b5cf6" } }}>
-              <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={sleepTrend}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} />
@@ -111,7 +109,6 @@ export default function TrendsSection() {
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Line type="monotone" dataKey="value" stroke="var(--color-sleep)" strokeWidth={2} dot={false} />
                 </LineChart>
-              </ResponsiveContainer>
             </ChartContainer>
             {sleepTrend.length === 0 && (
               <p className="text-center py-4 text-muted-foreground text-sm">No sleep data yet.</p>
@@ -122,7 +119,6 @@ export default function TrendsSection() {
           <div>
             <h4 className="text-sm font-semibold mb-2">Water Intake (ml)</h4>
             <ChartContainer config={{ water: { label: "Water (ml)", color: "#06b6d4" } }}>
-              <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={waterTrend}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} />
@@ -130,7 +126,6 @@ export default function TrendsSection() {
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Line type="monotone" dataKey="value" stroke="var(--color-water)" strokeWidth={2} dot={false} />
                 </LineChart>
-              </ResponsiveContainer>
             </ChartContainer>
             {waterTrend.length === 0 && (
               <p className="text-center py-4 text-muted-foreground text-sm">No water data yet.</p>
@@ -141,7 +136,6 @@ export default function TrendsSection() {
           <div>
             <h4 className="text-sm font-semibold mb-2">Weight (kg)</h4>
             <ChartContainer config={{ weight: { label: "Weight (kg)", color: "#f59e0b" } }}>
-              <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={weightTrend}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} />
@@ -149,7 +143,6 @@ export default function TrendsSection() {
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Line type="monotone" dataKey="value" stroke="var(--color-weight)" strokeWidth={2} dot={{ r: 3 }} />
                 </LineChart>
-              </ResponsiveContainer>
             </ChartContainer>
             {weightTrend.length === 0 && (
               <p className="text-center py-4 text-muted-foreground text-sm">No weight data yet.</p>
@@ -160,7 +153,6 @@ export default function TrendsSection() {
           <div>
             <h4 className="text-sm font-semibold mb-2">Calories Consumed</h4>
             <ChartContainer config={{ calories: { label: "Calories", color: "#ef4444" } }}>
-              <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={calorieTrend}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} />
@@ -168,7 +160,6 @@ export default function TrendsSection() {
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Line type="monotone" dataKey="value" stroke="var(--color-calories)" strokeWidth={2} dot={false} />
                 </LineChart>
-              </ResponsiveContainer>
             </ChartContainer>
             {calorieTrend.length === 0 && (
               <p className="text-center py-4 text-muted-foreground text-sm">No calorie data yet.</p>

@@ -8,121 +8,133 @@ import {
   Activity, ArrowRight, ChevronDown, ChevronUp, Apple, 
   Heart, AlertTriangle, Info, Moon, Sun, User, 
   Calendar, Weight, Calculator, Shield,
-  Trash2, History, RefreshCw, Share2, Download, Save
+  Trash2, History, RefreshCw, Share2, Download, Save, 
+  ScanLine, Camera, Target as TargetIcon, Trophy,
+  Flame, Dumbbell, Eye, TrendingUp as TrendingUpIcon
 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
-// SVG body silhouette component — renders male or female based on gender
-function BodySilhouette({ gender, progress, startWeight, currentWeight, targetWeight }: {
+// AI Body Personal - Animated Progress Visualization
+function AIPersonalBody({ gender, startWeight, currentWeight, targetWeight, goalType }: {
   gender: string | null;
-  progress: number; // 0-100, how much toward goal
   startWeight: number;
   currentWeight: number;
   targetWeight: number;
+  goalType: string;
 }) {
   const isFemale = gender?.toLowerCase() === "female";
-  const diff = currentWeight - startWeight;
+  const diff = Number(currentWeight) - Number(startWeight);
   const isLoss = diff < 0;
   const isGain = diff > 0;
-
-  // Color based on progress direction
-  const progressColor = isLoss
-    ? `hsl(${120 + Math.min(progress, 100) * 1.2}, 70%, 50%)`  // green for loss
-    : isGain
-      ? `hsl(${200 + Math.min(progress, 100) * 0.6}, 70%, 55%)`  // blue for gain
-      : "hsl(var(--primary))";
-
-  const bgColor = isLoss ? "from-emerald-500/10 to-teal-500/10" : isGain ? "from-blue-500/10 to-indigo-500/10" : "from-gray-500/10 to-gray-500/10";
-
+  const toGoal = Number(targetWeight) - Number(startWeight);
+  const progress = toGoal !== 0 ? Math.abs(diff / toGoal) * 100 : 0;
+  
+  // Progress colors
+  const gainColor = { primary: "#22c55e", glow: "rgba(34,197,94,0.4)" };
+  const lossColor = { primary: "#3b82f6", glow: "rgba(59,130,246,0.4)" };
+  const colorScheme = goalType === "weight_loss" ? (isLoss ? lossColor : gainColor) : (isGain ? gainColor : lossColor);
+  const accentColor = isLoss ? "text-blue-400" : isGain ? "text-emerald-400" : "text-primary";
+  
+  // Body scale based on weight change (subtle scaling effect)
+  const scaleX = isLoss ? Math.max(0.88, 1 - Math.abs(diff) / 100) : Math.min(1.12, 1 + diff / 100);
+  const scaleY = isLoss ? Math.min(1.08, 1 + Math.abs(diff) / 100) : Math.max(0.92, 1 - diff / 100);
+  
   return (
-    <div className={`relative rounded-3xl bg-gradient-to-b ${bgColor} p-6 flex flex-col items-center gap-4 overflow-hidden`}>
-      <div className="absolute inset-0 opacity-5">
-        <div className="absolute top-10 left-10 w-32 h-32 rounded-full bg-current blur-3xl" />
-        <div className="absolute bottom-10 right-10 w-24 h-24 rounded-full bg-current blur-3xl" />
+    <div className="relative rounded-3xl overflow-hidden bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 p-6 flex flex-col items-center shadow-2xl">
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent" />
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-20 -left-20 w-64 h-64 rounded-full bg-gradient-to-br from-emerald-500/10 to-blue-500/10 blur-3xl animate-pulse" />
+        <div className="absolute -bottom-20 -right-20 w-48 h-48 rounded-full bg-gradient-to-tr from-blue-500/10 to-purple-500/10 blur-2xl" />
       </div>
-
-      {/* Body SVG */}
-      <div className="relative w-32 h-52 md:w-40 md:h-64">
-        <svg viewBox="0 0 200 320" className="w-full h-full" style={{ filter: `drop-shadow(0 4px 20px ${progressColor}40)` }}>
+      
+      <div className="relative z-10 text-center mb-4">
+        <div className="flex items-center justify-center gap-2 mb-1">
+          <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
+          <span className="text-[10px] font-black uppercase tracking-widest text-white/60">AI Personal</span>
+          <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
+        </div>
+        <h3 className="font-display text-xl font-black text-white">Body Transformation</h3>
+      </div>
+      
+      {/* Animated Body Visualization */}
+      <div className="relative w-40 h-52 mb-4" style={{ transform: `scaleX(${scaleX}) scaleY(${scaleY})`, transition: "transform 0.8s cubic-bezier(0.4, 0, 0.2, 1)" }}>
+        <svg viewBox="0 0 200 320" className="w-full h-full" style={{ filter: `drop-shadow(0 0 30px ${colorScheme.glow})` }}>
+          <defs>
+            <linearGradient id={`bodyGrad-${isFemale ? 'f' : 'm'}`} x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor={colorScheme.primary} stopOpacity="0.9" />
+              <stop offset="50%" stopColor={colorScheme.primary} stopOpacity="0.7" />
+              <stop offset="100%" stopColor={colorScheme.primary} stopOpacity="0.5" />
+            </linearGradient>
+          </defs>
+          
           {isFemale ? (
-            // Female silhouette
-            <g>
-              {/* Head */}
-              <circle cx="100" cy="38" r="28" fill={progressColor} opacity="0.9" />
-              {/* Neck */}
-              <rect x="90" y="64" width="20" height="16" rx="4" fill={progressColor} opacity="0.85" />
-              {/* Torso — hourglass */}
-              <path d="M60,80 Q55,85 52,100 Q48,120 55,140 Q60,155 65,165 Q75,180 80,190 L120,190 Q125,180 135,165 Q140,155 145,140 Q152,120 148,100 Q145,85 140,80 Z" fill={progressColor} opacity="0.8" />
-              {/* Left arm */}
-              <path d="M52,90 Q35,100 28,130 Q24,150 30,160" stroke={progressColor} strokeWidth="14" strokeLinecap="round" fill="none" opacity="0.75" />
-              {/* Right arm */}
-              <path d="M148,90 Q165,100 172,130 Q176,150 170,160" stroke={progressColor} strokeWidth="14" strokeLinecap="round" fill="none" opacity="0.75" />
-              {/* Left leg */}
-              <path d="M80,190 Q75,220 72,250 Q70,280 68,310" stroke={progressColor} strokeWidth="18" strokeLinecap="round" fill="none" opacity="0.7" />
-              {/* Right leg */}
-              <path d="M120,190 Q125,220 128,250 Q130,280 132,310" stroke={progressColor} strokeWidth="18" strokeLinecap="round" fill="none" opacity="0.7" />
+            <g fill={`url(#bodyGrad-f)`}>
+              <circle cx="100" cy="38" r="28" />
+              <rect x="90" y="64" width="20" height="16" rx="4" opacity="0.85" />
+              <path d="M60,80 Q55,85 52,100 Q48,120 55,140 Q60,155 65,165 Q75,180 80,190 L120,190 Q125,180 135,165 Q140,155 145,140 Q152,120 148,100 Q145,85 140,80 Z" />
+              <path d="M52,90 Q35,100 28,130 Q24,150 30,160" stroke={colorScheme.primary} strokeWidth="14" strokeLinecap="round" fill="none" opacity="0.75" />
+              <path d="M148,90 Q165,100 172,130 Q176,150 170,160" stroke={colorScheme.primary} strokeWidth="14" strokeLinecap="round" fill="none" opacity="0.75" />
+              <path d="M80,190 Q75,220 72,250 Q70,280 68,310" stroke={colorScheme.primary} strokeWidth="18" strokeLinecap="round" fill="none" opacity="0.7" />
+              <path d="M120,190 Q125,220 128,250 Q130,280 132,310" stroke={colorScheme.primary} strokeWidth="18" strokeLinecap="round" fill="none" opacity="0.7" />
             </g>
           ) : (
-            // Male silhouette
-            <g>
-              {/* Head */}
-              <circle cx="100" cy="35" r="30" fill={progressColor} opacity="0.9" />
-              {/* Neck */}
-              <rect x="87" y="63" width="26" height="16" rx="4" fill={progressColor} opacity="0.85" />
-              {/* Torso — broader */}
-              <path d="M55,79 Q48,85 45,100 Q42,130 50,155 Q55,170 65,185 L75,190 L125,190 L135,185 Q145,170 150,155 Q158,130 155,100 Q152,85 145,79 Z" fill={progressColor} opacity="0.8" />
-              {/* Left arm */}
-              <path d="M48,88 Q30,100 22,135 Q18,155 24,165" stroke={progressColor} strokeWidth="16" strokeLinecap="round" fill="none" opacity="0.75" />
-              {/* Right arm */}
-              <path d="M152,88 Q170,100 178,135 Q182,155 176,165" stroke={progressColor} strokeWidth="16" strokeLinecap="round" fill="none" opacity="0.75" />
-              {/* Left leg */}
-              <path d="M78,190 Q74,220 70,255 Q68,285 66,312" stroke={progressColor} strokeWidth="20" strokeLinecap="round" fill="none" opacity="0.7" />
-              {/* Right leg */}
-              <path d="M122,190 Q126,220 130,255 Q132,285 134,312" stroke={progressColor} strokeWidth="20" strokeLinecap="round" fill="none" opacity="0.7" />
+            <g fill={`url(#bodyGrad-m)`}>
+              <circle cx="100" cy="35" r="30" />
+              <rect x="87" y="63" width="26" height="16" rx="4" opacity="0.85" />
+              <path d="M55,79 Q48,85 45,100 Q42,130 50,155 Q55,170 65,185 L75,190 L125,190 L135,185 Q145,170 150,155 Q158,130 155,100 Q152,85 145,79 Z" />
+              <path d="M48,88 Q30,100 22,135 Q18,155 24,165" stroke={colorScheme.primary} strokeWidth="16" strokeLinecap="round" fill="none" opacity="0.75" />
+              <path d="M152,88 Q170,100 178,135 Q182,155 176,165" stroke={colorScheme.primary} strokeWidth="16" strokeLinecap="round" fill="none" opacity="0.75" />
+              <path d="M78,190 Q74,220 70,255 Q68,285 66,312" stroke={colorScheme.primary} strokeWidth="20" strokeLinecap="round" fill="none" opacity="0.7" />
+              <path d="M122,190 Q126,220 130,255 Q132,285 134,312" stroke={colorScheme.primary} strokeWidth="20" strokeLinecap="round" fill="none" opacity="0.7" />
             </g>
           )}
-          {/* Progress ring around head */}
-          <circle cx="100" cy="38" r="36" fill="none" stroke={progressColor} strokeWidth="3" opacity="0.3" strokeDasharray={`${Math.PI * 72 * (progress / 100)} ${Math.PI * 72}`} transform="rotate(-90, 100, 38)" />
+          
+          {/* Progress Ring */}
+          <circle cx="100" cy="38" r="38" fill="none" stroke={colorScheme.primary} strokeWidth="3" opacity="0.4" 
+            strokeDasharray={`${Math.PI * 76 * (Math.min(progress, 100) / 100)} ${Math.PI * 76}`} 
+            transform="rotate(-90, 100, 38)" strokeLinecap="round" />
         </svg>
-      </div>
-
-      {/* Stats below body */}
-      <div className="relative grid grid-cols-3 gap-4 w-full text-center">
-        <div>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Start</p>
-          <p className="font-display font-bold text-lg">{startWeight || "—"}</p>
-          <p className="text-[10px] text-muted-foreground">kg</p>
+        
+        {/* Floating Badge */}
+        <div className="absolute -top-2 right-0 px-3 py-1 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-[10px] font-black shadow-lg animate-bounce">
+          {Math.min(Math.round(progress), 100)}%
         </div>
-        <div className="relative">
-          <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-            {isLoss ? <ArrowDown className="w-4 h-4 text-emerald-500" /> :
-              isGain ? <ArrowUp className="w-4 h-4 text-blue-500" /> :
-                <Minus className="w-4 h-4 text-muted-foreground" />}
+      </div>
+      
+      {/* Stats Grid */}
+      <div className="relative grid grid-cols-3 gap-3 w-full mb-4">
+        <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10">
+          <p className="text-[9px] uppercase tracking-wider text-white/50 mb-1">Start</p>
+          <p className="font-black text-white text-lg">{startWeight}</p>
+          <p className="text-[9px] text-white/40">kg</p>
+        </div>
+        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/20 relative">
+          <div className="absolute -top-2 left-1/2 -translate-x-1/2">
+            {isLoss ? <ArrowDown className="w-4 h-4 text-blue-400" /> : isGain ? <ArrowUp className="w-4 h-4 text-emerald-400" /> : <Minus className="w-4 h-4 text-white/50" />}
           </div>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">Current</p>
-          <p className="font-display font-extrabold text-2xl" style={{ color: progressColor }}>{currentWeight || "—"}</p>
-          <p className="text-[10px] text-muted-foreground">kg</p>
+          <p className="text-[9px] uppercase tracking-wider text-white/50 mb-1 mt-2">Current</p>
+          <p className="font-black text-white text-xl" style={{ color: colorScheme.primary }}>{currentWeight}</p>
+          <p className="text-[9px] text-white/40">kg</p>
         </div>
-        <div>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Target</p>
-          <p className="font-display font-bold text-lg">{targetWeight || "—"}</p>
-          <p className="text-[10px] text-muted-foreground">kg</p>
+        <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10">
+          <p className="text-[9px] uppercase tracking-wider text-white/50 mb-1">Target</p>
+          <p className="font-black text-white text-lg">{targetWeight}</p>
+          <p className="text-[9px] text-white/40">kg</p>
         </div>
       </div>
-
-      {/* Progress bar */}
-      <div className="w-full">
+      
+      {/* Change Indicator */}
+      <div className="relative w-full">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-xs font-semibold" style={{ color: progressColor }}>
-            {Math.abs(diff).toFixed(1)} kg {isLoss ? "lost" : isGain ? "gained" : ""}
+          <span className={`text-xs font-bold ${accentColor}`}>
+            {Math.abs(diff).toFixed(1)} kg {isLoss ? "lost" : isGain ? "gained" : "maintained"}
           </span>
-          <span className="text-xs text-muted-foreground">{Math.min(Math.round(progress), 100)}% to goal</span>
+          <span className="text-xs text-white/50">{targetWeight ? `${Math.abs(targetWeight - currentWeight).toFixed(1)} kg to goal` : "Set a goal"}</span>
         </div>
-        <div className="h-2.5 rounded-full bg-secondary overflow-hidden">
-          <div
-            className="h-full rounded-full transition-all duration-1000 ease-out"
-            style={{ width: `${Math.min(progress, 100)}%`, background: `linear-gradient(90deg, ${progressColor}80, ${progressColor})` }}
-          />
+        <div className="h-2.5 rounded-full bg-white/10 overflow-hidden backdrop-blur">
+          <div className="h-full rounded-full transition-all duration-1000 ease-out"
+            style={{ width: `${Math.min(progress, 100)}%`, background: `linear-gradient(90deg, ${colorScheme.primary}cc, ${colorScheme.primary})` }} />
         </div>
       </div>
     </div>
@@ -154,6 +166,10 @@ export default function Progress() {
     const { error } = await supabase.from("weight_logs").insert({ user_id:user!.id, weight_kg: val });
     if (error) toast.error(error.message); else { toast.success("Weight logged"); setW(""); load(); }
   };
+  const deleteWeight = async (id: string) => {
+    const { error } = await supabase.from("weight_logs").delete().eq("id", id);
+    if (error) toast.error(error.message); else { toast.success("Entry removed"); load(); }
+  };
   const addMeas = async (e:any) => { e.preventDefault();
     const payload:any = { user_id: user!.id };
     Object.entries(m).forEach(([k,v]) => { if (v) payload[k] = parseFloat(v); });
@@ -174,24 +190,24 @@ export default function Progress() {
   const latest = weights.length > 0 ? weights[weights.length-1].weight_kg : null;
   const target = profile?.target_weight_kg;
   
-  const max = weights.length > 0 ? Math.max(...weights.map(x=>x.weight_kg)) : 0; 
-  const min = weights.length > 0 ? Math.min(...weights.map(x=>x.weight_kg)) : 0;
+  const max = weights.length > 0 ? Math.max(...weights.map(x=>Number(x.weight_kg))) : 0; 
+  const min = weights.length > 0 ? Math.min(...weights.map(x=>Number(x.weight_kg))) : 0;
   const goalType = profile?.goal || (target && latest && target < latest ? "weight_loss" : "weight_gain");
 
-  const diff = start && latest ? (latest - start) : 0;
-  const remaining = latest && target ? (target - latest) : null;
+  const diff = start && latest ? (Number(latest) - Number(start)) : 0;
+  const remaining = latest && target ? (Number(target) - Number(latest)) : null;
 
   // Calculate progress toward goal
   const progressPercent = (() => {
     if (!start || !latest || !target) return 0;
-    const totalNeeded = Math.abs(start - target);
+    const totalNeeded = Math.abs(Number(start) - Number(target));
     if (totalNeeded === 0) return 100;
     
     let achieved = 0;
     if (goalType === "weight_loss") {
-      achieved = start - latest;
+      achieved = Number(start) - Number(latest);
     } else {
-      achieved = latest - start;
+      achieved = Number(latest) - Number(start);
     }
     
     return Math.max(0, Math.min(100, (achieved / totalNeeded) * 100));
@@ -339,23 +355,23 @@ export default function Progress() {
       )}
     </div>
 
-      {/* Body Silhouette Visualization */}
-      {weights.length >= 2 && target && (
+      {/* AI Body Personal Visualization */}
+      {weights.length >= 2 && target && start && latest && (
         <div className="grid md:grid-cols-2 gap-4 animate-pop">
-          <BodySilhouette
+          <AIPersonalBody
             gender={profile?.gender || null}
-            progress={progressPercent}
-            startWeight={start}
-            currentWeight={latest}
-            targetWeight={target}
+            startWeight={Number(start)}
+            currentWeight={Number(latest)}
+            targetWeight={Number(target)}
+            goalType={goalType}
           />
           
           {/* Health Insights */}
           <div className="glass-card rounded-3xl p-6 border-none shadow-xl bg-white dark:bg-slate-900/50 flex flex-col">
-            <h3 className="font-display font-bold text-lg mb-4 flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-amber-500" />
-              Health Metrics
-            </h3>
+            <div className="flex items-center gap-2 mb-4">
+              <Trophy className="w-5 h-5 text-amber-500" />
+              <h3 className="font-display font-bold text-lg">Health Metrics</h3>
+            </div>
             <div className="grid grid-cols-2 gap-6 mb-6">
               <div className="space-y-1">
                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">BMI Status</p>
@@ -377,7 +393,6 @@ export default function Progress() {
                 <p className="text-[8px] text-muted-foreground italic">Standard for {profile?.height_cm || "—"} cm</p>
               </div>
             </div>
-            
             <div className="mt-auto pt-6 border-t border-border/50">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-bold">Goal Progress</p>
@@ -386,10 +401,7 @@ export default function Progress() {
                 </p>
               </div>
               <div className="h-2 rounded-full bg-secondary overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-brand transition-all duration-1000" 
-                  style={{ width: `${progressPercent}%` }} 
-                />
+                <div className="h-full bg-gradient-brand transition-all duration-1000" style={{ width: `${progressPercent}%` }} />
               </div>
             </div>
           </div>
@@ -428,6 +440,43 @@ export default function Progress() {
             <div className="h-px flex-1 border-t-2 border-dashed border-primary/30" />
             <span className="text-[10px] font-semibold text-primary">Goal: {target} kg</span>
             <div className="h-px flex-1 border-t-2 border-dashed border-primary/30" />
+          </div>
+        )}
+        
+        {/* Weight History Log */}
+        {weights.length > 0 && (
+          <div className="mt-8 overflow-hidden rounded-xl border border-border/50">
+            <div className="bg-secondary/50 px-4 py-2 border-b border-border/50 flex justify-between items-center">
+              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                <History className="w-3 h-3" /> Recent Logs
+              </h4>
+            </div>
+            <div className="max-h-48 overflow-y-auto">
+              <table className="w-full text-sm text-left">
+                <tbody className="divide-y divide-border/50">
+                  {/* Reverse weights array for the list so newest is on top */}
+                  {[...weights].reverse().map(log => (
+                    <tr key={log.id} className="hover:bg-secondary/20 transition-colors">
+                      <td className="px-4 py-2 text-muted-foreground text-xs">
+                        {new Date(log.date).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-2 font-bold text-foreground">
+                        {log.weight_kg} kg
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <button 
+                          onClick={() => deleteWeight(log.id)}
+                          className="p-1.5 text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded-md transition-colors inline-flex"
+                          title="Delete entry"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

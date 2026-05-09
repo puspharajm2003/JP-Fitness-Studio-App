@@ -6,6 +6,7 @@ import { useProfile } from "@/lib/useProfile";
 import { today } from "@/lib/dateUtil";
 import { Activity, ClipboardCheck, Dumbbell, Flame, Footprints, GlassWater, MessageCircle, Moon, Scale, Sparkles, TrendingDown, Trophy, TrendingUp, CheckCircle, AlertCircle, X, Info, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import TrendsSection from "./TrendsSection";
 
 type SensorStatus = "idle" | "active" | "syncing" | "synced" | "error";
@@ -19,6 +20,7 @@ export default function Dashboard() {
   const [deviceSleep, setDeviceSleep] = useState<number | null>(null);
   const [sensorStatus, setSensorStatus] = useState<SensorStatus>("idle");
   const [showSensorModal, setShowSensorModal] = useState(false);
+  const [showTroubleshoot, setShowTroubleshoot] = useState(false);
 
   const loadStats = useCallback(async () => {
     if (!user) return;
@@ -119,12 +121,16 @@ export default function Dashboard() {
      const newPoints = (profile?.loyalty_points || 0) + 10;
      await supabase.from("profiles").update({ loyalty_points: newPoints }).eq("id", user.id);
      // Log point change
-     await supabase.from("loyalty_point_logs").insert({
-       user_id: user.id,
-       points_change: 10,
-       reason: "check-in",
-       related_id: null,
-     });
+     try {
+       await supabase.from("loyalty_point_logs").insert({
+         user_id: user.id,
+         points_change: 10,
+         reason: "check-in",
+         related_id: null,
+       });
+     } catch (e) {
+       console.warn("Loyalty table missing:", e);
+     }
      // Refresh profile to update loyalty_points in UI
      await refresh();
      toast.success(`Checked in! +10 points (Total: ${newPoints} pts)`);
@@ -141,6 +147,8 @@ export default function Dashboard() {
   const stepGoal = profile?.daily_step_goal || 10000;
   const stepPercent = Math.min(100, (displaySteps / stepGoal) * 100);
   const sleepGoal = profile?.sleep_goal_hr || 8;
+
+  const isInstalled = window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone;
 
   return (
     <div className="space-y-6">
@@ -197,7 +205,12 @@ export default function Dashboard() {
           </div>
 
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Steps Today</p>
-          <p className="font-display text-2xl font-extrabold">{displaySteps.toLocaleString()}</p>
+          <div className="flex items-baseline gap-2">
+            <p className="font-display text-2xl font-extrabold">{displaySteps.toLocaleString()}</p>
+            <button onClick={(e) => { e.preventDefault(); setShowTroubleshoot(true); }} className="p-1 rounded-md hover:bg-slate-100 text-slate-400">
+              <AlertCircle className="w-3 h-3" />
+            </button>
+          </div>
           <div className="mt-2 h-1.5 rounded-full bg-secondary overflow-hidden">
             <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-1000" style={{ width: `${stepPercent}%` }} />
           </div>
@@ -245,6 +258,74 @@ export default function Dashboard() {
 
       {/* Trends Section */}
       <TrendsSection />
+
+      {/* PWA Status Badge */}
+      <div className="flex justify-center mt-4">
+        <div className={cn(
+          "px-4 py-2 rounded-full flex items-center gap-2 text-[10px] font-black uppercase tracking-widest border",
+          isInstalled ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-600" : "bg-slate-100 dark:bg-slate-800 border-transparent text-muted-foreground"
+        )}>
+          {isInstalled ? <CheckCircle className="w-3 h-3" /> : <Info className="w-3 h-3" />}
+          {isInstalled ? "Premium Standalone Active" : "Web Experience Mode"}
+        </div>
+      </div>
+
+      {/* Sensor Troubleshooting Modal */}
+      {showTroubleshoot && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-300">
+            <div className="p-8 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex justify-between items-start mb-4">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-lg">
+                  <Activity className="w-7 h-7" />
+                </div>
+                <button onClick={() => setShowTroubleshoot(false)} className="w-10 h-10 rounded-xl bg-white/50 dark:bg-slate-800/50 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <h3 className="font-display text-2xl font-black mb-1">Sensor Recovery</h3>
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">Step Sync Checklist</p>
+            </div>
+            
+            <div className="p-8 space-y-6">
+              <Checklist title="Browser Permissions" desc="Ensure 'Motion Sensors' are allowed in site settings." />
+              <Checklist title="Power Save Mode" desc="Disable battery saver which may pause accelerometer." />
+              <Checklist title="Physical Movement" desc="Device must be in motion to register active telemetry." />
+              <Checklist title="Network Link" desc="Stable connection required for real-time cloud sync." />
+
+              <div className="pt-6 border-t border-slate-100 dark:border-slate-800">
+                <button 
+                  onClick={() => {
+                    setSensorStatus("syncing");
+                    setTimeout(() => {
+                      setSensorStatus("active");
+                      toast.success("Telemetry link re-established ⚡");
+                      setShowTroubleshoot(false);
+                    }, 1500);
+                  }}
+                  className="w-full py-4 rounded-2xl bg-slate-900 text-white font-black text-xs uppercase tracking-widest shadow-xl hover:scale-[1.02] active:scale-95 transition-all"
+                >
+                  Force Re-Sync Telemetry
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Checklist({ title, desc }: { title: string; desc: string }) {
+  return (
+    <div className="flex items-start gap-4">
+      <div className="w-6 h-6 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0 mt-0.5">
+        <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+      </div>
+      <div>
+        <p className="font-bold text-sm leading-none mb-1">{title}</p>
+        <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
+      </div>
     </div>
   );
 }

@@ -9,7 +9,7 @@ import Workout from "@/components/jp/sections/Workout";
 import Water from "@/components/jp/sections/Water";
 import ActivityPage from "@/components/jp/sections/ActivityPage";
 import Medications from "@/components/jp/sections/Medications";
-import Rewards from "@/components/jp/sections/Rewards";
+import LoyaltyDashboard from "@/components/jp/sections/LoyaltyDashboard";
 import Notifications from "@/components/jp/sections/Notifications";
 import Profile from "@/components/jp/sections/Profile";
 import Tool from "@/components/jp/sections/Tool";
@@ -32,7 +32,7 @@ export default function Index() {
         <Route path="/water" element={<Water />} />
         <Route path="/activity" element={<ActivityPage />} />
         <Route path="/medications" element={<Medications />} />
-        <Route path="/rewards" element={<Rewards />} />
+        <Route path="/rewards" element={<LoyaltyDashboard />} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/profile" element={<Profile />} />
       </Routes>

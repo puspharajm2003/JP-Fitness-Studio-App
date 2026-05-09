@@ -13,6 +13,7 @@ import {
   Droplet,
   Dumbbell,
   Flame,
+  Footprints,
   Heart,
   History,
   Info,
@@ -32,8 +33,15 @@ import {
   Utensils,
   Weight,
   Wine,
-  Zap
+  Zap,
+  Sparkles
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ProteinCalculator } from "@/components/ProteinCalculator";
+import { FatIntakeCalculator } from "@/components/FatIntakeCalculator";
+import { CarbohydrateCalculator } from "@/components/CarbohydrateCalculator";
+import { TdeeCalculator } from "@/components/TdeeCalculator";
+import { MacroCalculator } from "@/components/MacroCalculator";
 
 type UnitSystem = "metric" | "imperial";
 type Gender = "male" | "female";
@@ -87,7 +95,7 @@ const activityLabels: Record<ActivityLevel, string> = {
 
 export default function Tool() {
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black tracking-tight">Fitness Tools</h1>
@@ -101,6 +109,21 @@ export default function Tool() {
         </div>
         <div className="glass-card rounded-3xl overflow-hidden border-none shadow-2xl">
           <BodyFatCalculator />
+        </div>
+      </div>
+
+      <div className="pt-12 border-t border-border/50">
+        <div className="mb-10">
+          <h2 className="text-3xl font-black tracking-tight">Nutritional Labs</h2>
+          <p className="text-muted-foreground mt-1 text-sm">Advanced analysis of your macronutrient and energy requirements.</p>
+        </div>
+        
+        <div className="grid lg:grid-cols-2 gap-8">
+          <ProteinCalculator />
+          <FatIntakeCalculator />
+          <CarbohydrateCalculator />
+          <TdeeCalculator />
+          <MacroCalculator />
         </div>
       </div>
     </div>

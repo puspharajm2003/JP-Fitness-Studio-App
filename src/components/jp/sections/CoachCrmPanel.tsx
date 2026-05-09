@@ -1,18 +1,29 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState, useMemo } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/providers/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
-import { ArrowLeft, Users, CalendarCheck, MessageCircle, BarChart3, Trophy } from "lucide-react";
+import { 
+  ArrowLeft, Users, CalendarCheck, MessageCircle, BarChart3, 
+  Trophy, Search, Filter, ChevronRight, UserCheck, 
+  TrendingUp, Activity, LayoutGrid, Settings, Star
+} from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+
+type CoachTab = "overview" | "roster" | "activity";
 
 export default function CoachCrmPanel() {
   const { user } = useAuth();
   const { isCoach, loading } = useIsAdmin();
+  const navigate = useNavigate();
+  
   const [clients, setClients] = useState<any[]>([]);
   const [packages, setPackages] = useState<any[]>([]);
   const [attendance, setAttendance] = useState<any[]>([]);
   const [busy, setBusy] = useState(false);
+  const [activeTab, setActiveTab] = useState<CoachTab>("overview");
+  const [search, setSearch] = useState("");
 
   const refresh = async () => {
     if (!user) return;
@@ -25,7 +36,7 @@ export default function CoachCrmPanel() {
         .order("full_name", { ascending: true });
 
       if (clientRows && clientRows.length > 0) {
-        const clientIds = clientRows.map((row:any) => row.id);
+        const clientIds = clientRows.map((row: any) => row.id);
         const [pkgRes, attRes] = await Promise.all([
           supabase.from("packages").select("user_id,name,price,status,end_date").in("user_id", clientIds).eq("status", "active"),
           supabase.from("attendance").select("user_id,date").in("user_id", clientIds),
@@ -39,7 +50,7 @@ export default function CoachCrmPanel() {
         setPackages([]);
         setAttendance([]);
       }
-    } catch (error:any) {
+    } catch (error: any) {
       toast.error(error.message || "Unable to load coach CRM data");
     } finally {
       setBusy(false);
@@ -50,111 +61,248 @@ export default function CoachCrmPanel() {
     if (isCoach) refresh();
   }, [isCoach, user]);
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Loading…</div>;
+  const filteredClients = useMemo(() => {
+    return clients.filter(c => 
+      (c.full_name || "").toLowerCase().includes(search.toLowerCase()) ||
+      (c.phone || "").toLowerCase().includes(search.toLowerCase())
+    );
+  }, [clients, search]);
+
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+      <div className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+    </div>
+  );
+
   if (!isCoach) return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-10">
-      <div className="glass-card rounded-3xl p-8 max-w-md text-center">
-        <h2 className="font-display text-2xl font-bold mb-3">Coach access required</h2>
-        <p className="text-sm text-muted-foreground mb-6">This section is only available to users with a coach role.</p>
-        <Link to="/profile" className="inline-flex items-center justify-center rounded-full bg-gradient-brand px-5 py-3 text-sm font-semibold text-white">Back to profile</Link>
+    <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50 dark:bg-slate-950">
+      <div className="max-w-md w-full p-8 text-center glass-card rounded-[2.5rem] shadow-2xl">
+        <div className="w-20 h-20 bg-emerald-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
+          <Star className="w-10 h-10 text-emerald-500" />
+        </div>
+        <h2 className="font-display font-black text-2xl mb-3">Coach Hub Locked</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
+          This portal is reserved for certified JP Studio coaches. Contact the head office to upgrade your account status.
+        </p>
+        <button onClick={() => navigate("/profile")} className="inline-flex items-center gap-2 px-8 py-3 rounded-2xl bg-emerald-600 text-white font-bold text-sm shadow-xl active:scale-95 transition-all">
+          <ArrowLeft className="w-4 h-4" /> Return to Profile
+        </button>
       </div>
     </div>
   );
 
-  const clientCount = clients.length;
   const activeClientCount = clients.filter((client) => packages.some((pkg) => pkg.user_id === client.id)).length;
   const today = new Date().toISOString().slice(0, 10);
   const todayCheckins = attendance.filter((row) => row.date === today).length;
   const totalRevenue = packages.reduce((sum, pkg) => sum + (parseFloat(pkg.price) || 0), 0);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,_rgba(16,185,129,0.15),_transparent_35%),radial-gradient(circle_at_bottom_left,_rgba(59,130,246,0.14),_transparent_30%),linear-gradient(180deg,#02060d,#08101f)] text-slate-100">
-      <div className="max-w-6xl mx-auto px-4 md:px-8 py-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
-          <div className="space-y-3">
-            <Link to="/profile" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-300 hover:text-white">
-              <ArrowLeft className="w-4 h-4"/>Back to profile
-            </Link>
-            <div className="space-y-1">
-              <p className="uppercase tracking-[0.25em] text-[11px] text-cyan-300/90 font-semibold">Coach CRM</p>
-              <h1 className="font-display text-3xl sm:text-4xl font-extrabold tracking-tight">Coach Panel</h1>
-              <p className="max-w-2xl text-sm text-slate-400">Manage your client roster, monitor attendance, and keep premium coaching details in one mobile-friendly view.</p>
-            </div>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col lg:flex-row overflow-hidden">
+      {/* Side Navigation */}
+      <aside className="w-full lg:w-72 bg-white dark:bg-slate-900 border-b lg:border-r border-slate-200 dark:border-slate-800 p-6 flex flex-col">
+        <div className="flex items-center gap-3 mb-10">
+          <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center">
+            <UserCheck className="w-6 h-6" />
           </div>
-          <div className="inline-flex items-center gap-2 rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-100 backdrop-blur">
-            <MessageCircle className="w-4 h-4 text-emerald-300"/>
-            <span>Coach dashboard</span>
+          <div>
+            <h1 className="font-display font-black text-lg text-slate-900 dark:text-white leading-none">Coach Hub</h1>
+            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mt-1">Premium Portal</p>
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-6">
-          <PanelCard icon={Users} label="Clients" value={clientCount} />
-          <PanelCard icon={Trophy} label="Active clients" value={activeClientCount} />
-          <PanelCard icon={CalendarCheck} label="Today check-ins" value={todayCheckins} />
-          <PanelCard icon={BarChart3} label="Weekly revenue" value={`₹${totalRevenue.toLocaleString()}`} />
-        </div>
+        <nav className="flex-1 space-y-2">
+          <CoachNavItem active={activeTab === "overview"} onClick={() => setActiveTab("overview")} icon={LayoutGrid} label="Portfolio Stats" />
+          <CoachNavItem active={activeTab === "roster"} onClick={() => setActiveTab("roster")} icon={Users} label="Client Roster" />
+          <CoachNavItem active={activeTab === "activity"} onClick={() => setActiveTab("activity")} icon={Activity} label="Activity Logs" />
+        </nav>
 
-        <div className="grid gap-4 lg:grid-cols-[1.35fr_0.65fr]">
-          <div className="rounded-[2rem] border border-white/10 bg-slate-950/90 p-6 shadow-[0_30px_60px_rgba(0,0,0,0.30)]">
-            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-white">Assigned clients</h2>
-                <p className="text-sm text-slate-400">A summary of your coaching roster and package status.</p>
-              </div>
-              <span className="rounded-full bg-slate-900/80 px-3 py-1 text-xs uppercase tracking-[0.25em] text-slate-300">{clientCount} total</span>
+        <div className="mt-auto pt-6 border-t border-slate-100 dark:border-slate-800">
+          <Link to="/profile" className="flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-slate-600 dark:text-slate-400 group">
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+            <span className="text-sm font-bold">Back to Profile</span>
+          </Link>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-12">
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-600 mb-1">Elite Coach Dashboard</p>
+            <h2 className="font-display text-3xl md:text-4xl font-black text-slate-900 dark:text-white uppercase">
+              {activeTab === "overview" && "Executive Summary"}
+              {activeTab === "roster" && "Client Directory"}
+              {activeTab === "activity" && "Performance Logs"}
+            </h2>
+          </div>
+          
+          <div className="flex items-center gap-3">
+             <div className="relative group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input 
+                placeholder="Search clients..." 
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="pl-11 pr-6 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm font-bold outline-none focus:ring-4 focus:ring-emerald-500/10 w-64 transition-all"
+              />
             </div>
-            <div className="space-y-3">
-              {clients.map((client) => (
-                <div key={client.id} className="rounded-3xl border border-white/10 bg-slate-900/80 p-4 transition hover:border-cyan-400/20 hover:bg-slate-900">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="font-semibold text-white">{client.full_name || "Unnamed client"}</p>
-                      <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Goal: {client.goal || "—"}</p>
+          </div>
+        </header>
+
+        {activeTab === "overview" && (
+          <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-6">
+              <CoachStatCard label="Total Clients" value={clients.length} icon={Users} color="bg-blue-500" />
+              <CoachStatCard label="Premium Clients" value={activeClientCount} icon={Trophy} color="bg-amber-500" />
+              <CoachStatCard label="Today Check-ins" value={todayCheckins} icon={CalendarCheck} color="bg-emerald-500" />
+              <CoachStatCard label="Projected Revenue" value={`₹${totalRevenue.toLocaleString()}`} icon={BarChart3} color="bg-purple-500" />
+            </div>
+
+            <div className="grid lg:grid-cols-[1.5fr_1fr] gap-8">
+              <div className="glass-card rounded-[2.5rem] p-8 shadow-xl border-none">
+                <div className="flex items-center justify-between mb-8">
+                  <h3 className="font-display font-black text-xl">Priority Roster</h3>
+                  <button onClick={() => setActiveTab("roster")} className="text-[10px] font-black uppercase tracking-widest text-emerald-600 flex items-center gap-1">Manage All <ChevronRight className="w-3 h-3" /></button>
+                </div>
+                <div className="space-y-4">
+                  {clients.slice(0, 4).map(client => (
+                    <div key={client.id} className="flex items-center justify-between p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all border border-transparent hover:border-emerald-500/10">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center font-black text-sm text-emerald-600 shadow-sm">
+                          {client.full_name?.slice(0, 1)}
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm text-slate-900 dark:text-white leading-none mb-1.5">{client.full_name || "Unnamed Client"}</p>
+                          <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">{client.goal || "No Goal Set"}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-black text-sm text-emerald-600">{client.loyalty_points || 0} PTS</p>
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">Joined {new Date(client.created_at).toLocaleDateString()}</p>
+                      </div>
                     </div>
-                    <span className="rounded-full bg-slate-800/80 px-3 py-1 text-xs uppercase tracking-[0.18em] text-slate-300">{client.loyalty_points || 0} pts</span>
-                  </div>
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                    <span className="rounded-2xl bg-white/5 px-3 py-2 text-sm text-slate-300">{client.phone || "No phone"}</span>
-                    <span className="rounded-2xl bg-white/5 px-3 py-2 text-sm text-slate-300">Joined {client.created_at ? new Date(client.created_at).toLocaleDateString() : "—"}</span>
-                  </div>
+                  ))}
+                  {clients.length === 0 && <p className="text-center py-10 text-muted-foreground text-sm font-medium">No clients assigned to your portfolio yet.</p>}
                 </div>
-              ))}
-              {clients.length === 0 && (
-                <div className="rounded-3xl border border-dashed border-white/15 bg-slate-900/80 p-6 text-center text-slate-400">
-                  No clients assigned yet. Your assigned members will appear here once they are linked to your coach profile.
-                </div>
-              )}
-            </div>
-          </div>
+              </div>
 
-          <div className="rounded-[2rem] border border-white/10 bg-slate-950/85 p-6 shadow-[0_30px_60px_rgba(0,0,0,0.25)]">
-            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Coach insights</p>
-            <h3 className="mt-3 text-xl font-bold text-white">Premium mobility</h3>
-            <p className="mt-2 text-sm text-slate-400">Everything is optimized for on-the-go coaching from mobile devices, with clean cards and fast actions.</p>
-            <div className="mt-5 space-y-3 text-sm text-slate-300">
-              <div className="rounded-3xl bg-slate-900/80 p-4">Track clients by activity, package and communication status in a single view.</div>
-              <div className="rounded-3xl bg-slate-900/80 p-4">Coach CRM panel is aligned with the existing admin experience but tailored for coaching workflows.</div>
-              <div className="rounded-3xl bg-slate-900/80 p-4">Use this panel to stay connected with assigned clients, monitor check-ins, and manage loyalty points efficiently.</div>
+              <div className="rounded-[2.5rem] bg-slate-900 p-10 text-white shadow-2xl relative overflow-hidden flex flex-col justify-between">
+                <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                  <MessageCircle className="w-48 h-48" />
+                </div>
+                <div className="relative z-10">
+                  <h3 className="font-display text-3xl font-black mb-4 leading-tight">Coach Support</h3>
+                  <p className="text-white/60 text-sm leading-relaxed mb-10">
+                    Use this panel to monitor client consistency, track renewals, and ensure your members are reaching their biometric milestones.
+                  </p>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/10 text-xs font-bold">
+                      <TrendingUp className="w-4 h-4 text-emerald-400" />
+                      Track 30-day consistency scores
+                    </div>
+                    <div className="flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/10 text-xs font-bold">
+                      <Star className="w-4 h-4 text-amber-400" />
+                      Manage loyalty rewards & PT sessions
+                    </div>
+                  </div>
+                </div>
+                <button className="mt-8 px-8 py-3 rounded-2xl bg-white text-slate-900 font-bold text-sm shadow-xl active:scale-95 transition-all w-fit">
+                  Message All Clients
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        )}
+
+        {activeTab === "roster" && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+               <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[800px]">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-800/50">
+                      <th className="p-6 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Client Identity</th>
+                      <th className="p-6 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Primary Goal</th>
+                      <th className="p-6 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Active Plan</th>
+                      <th className="p-6 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-right">Points</th>
+                      <th className="p-6 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {filteredClients.map(client => (
+                      <tr key={client.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all group">
+                        <td className="p-6">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-black text-xs text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-all">
+                              {client.full_name?.slice(0, 1)}
+                            </div>
+                            <div>
+                              <p className="font-bold text-sm text-slate-900 dark:text-white mb-0.5">{client.full_name || "Unnamed"}</p>
+                              <p className="text-[10px] text-muted-foreground font-black uppercase tracking-tighter">{client.phone || "No Phone"}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-6 text-xs font-bold uppercase tracking-widest text-slate-600 dark:text-slate-400">
+                          {client.goal?.replace("_", " ") || "—"}
+                        </td>
+                        <td className="p-6">
+                           {packages.find(p => p.user_id === client.id) ? (
+                              <div className="flex flex-col">
+                                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{packages.find(p => p.user_id === client.id)?.name}</span>
+                                <span className="text-[10px] font-black text-emerald-500 uppercase tracking-tighter">Active Plan</span>
+                              </div>
+                           ) : (
+                             <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">No Active Plan</span>
+                           )}
+                        </td>
+                        <td className="p-6 text-right font-black text-emerald-600">{client.loyalty_points || 0}</td>
+                        <td className="p-6">
+                           <div className="flex items-center justify-center gap-2">
+                              <button onClick={() => window.open(`https://wa.me/${client.phone?.replace(/\D/g, "")}`, "_blank")} className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-emerald-500 transition-all"><MessageCircle className="w-4 h-4" /></button>
+                           </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 }
 
-function PanelCard({ icon: Icon, label, value }: any) {
+function CoachNavItem({ active, onClick, icon: Icon, label }: any) {
   return (
-    <div className="rounded-[2rem] border border-white/10 bg-slate-900/85 p-5 shadow-[0_20px_40px_rgba(0,0,0,0.18)]">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs uppercase tracking-[0.25em] text-slate-400">{label}</p>
-          <p className="mt-3 text-3xl font-display font-extrabold text-white">{value}</p>
-        </div>
-        <div className="flex h-12 w-12 items-center justify-center rounded-3xl bg-cyan-400/10 text-cyan-300">
-          <Icon className="w-5 h-5" />
+    <button
+      onClick={onClick}
+      className={cn(
+        "w-full flex items-center gap-4 p-4 rounded-2xl transition-all duration-300 group",
+        active 
+          ? "bg-emerald-600 text-white shadow-xl translate-x-1" 
+          : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
+      )}
+    >
+      <Icon className={cn("w-5 h-5", active ? "text-white" : "text-slate-400 group-hover:text-emerald-600")} />
+      <span className="text-sm font-bold">{label}</span>
+      {active && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)] animate-pulse" />}
+    </button>
+  );
+}
+
+function CoachStatCard({ label, value, icon: Icon, color }: any) {
+  return (
+    <div className="glass-card rounded-[2.5rem] p-8 border-none shadow-xl relative overflow-hidden group hover:scale-[1.02] transition-all">
+      <div className={cn("absolute -top-12 -right-12 w-32 h-32 opacity-5 rounded-full", color)} />
+      <div className="flex items-center justify-between mb-6">
+        <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg", color)}>
+          <Icon className="w-6 h-6" />
         </div>
       </div>
+      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">{label}</p>
+      <p className="font-display text-3xl font-black text-slate-900 dark:text-white leading-none">{value}</p>
     </div>
   );
 }

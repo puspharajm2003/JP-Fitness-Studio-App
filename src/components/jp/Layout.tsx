@@ -45,11 +45,10 @@ export default function Layout({ children }: { children: ReactNode }) {
   // Bottom nav includes main items plus admin items for mobile
   const bottomNavItems = [
     ...navItems.filter(i => ["/", "/progress", "/workout", "/diet", "/profile"].includes(i.to)),
-    ...adminNav,
   ];
 
   // All nav items for sidebar
-  const allNavItems = navItems;
+  const allNavItems = isAdmin ? [...navItems, ...adminNav] : navItems;
 
   const handleInstall = async () => {
     if (isIOS) {

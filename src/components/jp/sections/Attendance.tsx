@@ -37,12 +37,16 @@ export default function Attendance() {
      const newPoints = (profile?.loyalty_points || 0) + 10;
      await supabase.from("profiles").update({ loyalty_points: newPoints }).eq("id", user.id);
      // Log point change
-     await supabase.from("loyalty_point_logs").insert({
-       user_id: user.id,
-       points_change: 10,
-       reason: "check-in",
-       related_id: null,
-     });
+     try {
+       await supabase.from("loyalty_point_logs").insert({
+         user_id: user.id,
+         points_change: 10,
+         reason: "check-in",
+         related_id: null,
+       });
+     } catch (e) {
+       console.warn("Loyalty table missing:", e);
+     }
      // Refresh profile to update loyalty_points in UI
      await refresh();
      toast.success(`Checked in! +10 loyalty points (Total: ${newPoints} pts)`);

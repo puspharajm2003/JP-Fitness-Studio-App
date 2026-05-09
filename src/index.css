@@ -45,7 +45,10 @@
 
 @layer base {
   * { @apply border-border; }
-  html, body, #root { height: 100%; }
+  html, body, #root { 
+    height: 100%; 
+    overflow-x: hidden;
+  }
   body {
     @apply bg-background text-foreground;
     font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
@@ -54,14 +57,27 @@
       radial-gradient(700px 400px at -10% 110%, hsl(var(--brand-1) / 0.18), transparent 60%),
       radial-gradient(500px 300px at 50% 50%, hsl(var(--brand-3) / 0.06), transparent 70%);
     background-attachment: fixed;
+    /* Extra scrollbar hiding */
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  body::-webkit-scrollbar {
+    display: none;
   }
 
   ::selection { background: hsl(var(--primary) / 0.25); color: hsl(var(--foreground)); }
 
-  ::-webkit-scrollbar { width: 10px; height: 10px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: hsl(var(--primary) / 0.3); border-radius: 999px; }
-  ::-webkit-scrollbar-thumb:hover { background: hsl(var(--primary) / 0.5); }
+  /* Hide scrollbars for all browsers globally */
+  * {
+    scrollbar-width: none !important; /* Firefox */
+    -ms-overflow-style: none !important; /* IE and Edge */
+  }
+  *::-webkit-scrollbar {
+    display: none !important; /* Chrome, Safari, and Opera */
+    width: 0 !important;
+    height: 0 !important;
+  }
 }
 
 @layer utilities {
@@ -87,6 +103,8 @@
     box-shadow: 0 8px 32px -16px hsl(var(--foreground) / 0.18);
   }
   .ring-brand { box-shadow: 0 0 0 4px hsl(var(--primary) / 0.18); }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 }
 
 @keyframes pop { 0%{transform:scale(.95);opacity:0} 100%{transform:scale(1);opacity:1} }

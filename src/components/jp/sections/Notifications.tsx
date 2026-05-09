@@ -8,6 +8,7 @@ import {
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 
 interface NotiSettings {
   hydration_enabled: boolean;
@@ -16,6 +17,7 @@ interface NotiSettings {
   med_interval: number;
   loyalty_enabled: boolean;
   permission_granted: boolean;
+  onboarding_dismissed: boolean;
 }
 
 const HYDRATION_OPTIONS = [
@@ -68,7 +70,11 @@ export default function Notifications() {
     med_interval: 8,
     loyalty_enabled: true,
     permission_granted: false,
+    onboarding_dismissed: false,
   });
+  const [showTestStatus, setShowTestStatus] = useState<"none" | "success" | "failure">("none");
+  const [waterGoalMet, setWaterGoalMet] = useState(false);
+  const [medsTakenToday, setMedsTakenToday] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -98,7 +104,20 @@ export default function Notifications() {
 
   useEffect(() => {
     loadSettings();
+    checkGoals();
   }, [loadSettings]);
+
+  const checkGoals = async () => {
+    if (!user) return;
+    const { data: waterLogs } = await supabase.from("water_logs").select("amount_ml").eq("user_id", user.id).eq("date", new Date().toISOString().split('T')[0]);
+    const { data: profile } = await supabase.from("profiles").select("daily_water_goal_ml").eq("id", user.id).single();
+    
+    const totalWater = waterLogs?.reduce((sum, log) => sum + log.amount_ml, 0) || 0;
+    setWaterGoalMet(totalWater >= (profile?.daily_water_goal_ml || 2000));
+
+    const { data: medLogs } = await supabase.from("medication_logs").select("*").eq("user_id", user.id).eq("status", "taken").gte("taken_at", new Date().toISOString().split('T')[0]);
+    setMedsTakenToday((medLogs?.length || 0) > 0);
+  };
 
   const saveSettings = async (newSettings: Partial<NotiSettings>) => {
     const updated = { ...settings, ...newSettings };
@@ -127,6 +146,24 @@ export default function Notifications() {
     }
   };
 
+  const triggerTestNotification = () => {
+    if (!settings.permission_granted) {
+      setShowTestStatus("failure");
+      toast.error("Permission not granted. Cannot send test notification.");
+      return;
+    }
+    try {
+      new Notification("🚀 Test Notification", {
+        body: "Success! Your reminders are working correctly. Stay consistent!",
+        icon: "/jp-logo.png",
+      });
+      setShowTestStatus("success");
+      setTimeout(() => setShowTestStatus("none"), 3000);
+    } catch (err) {
+      setShowTestStatus("failure");
+    }
+  };
+
   const saveToProfile = async () => {
     if (!user) return;
     setSaving(true);
@@ -148,10 +185,11 @@ export default function Notifications() {
     if (!settings.hydration_enabled || !settings.permission_granted) return;
 
     const intervalMs = settings.hydration_interval * 60 * 60 * 1000;
-    const id = setInterval(() => {
-      if (settings.permission_granted) {
+    const id = setInterval(async () => {
+      await checkGoals();
+      if (settings.permission_granted && !waterGoalMet) {
         new Notification("💧 JP Fitness Hydration", {
-          body: `Time to drink water! Stay hydrated — every ${settings.hydration_interval}h reminder.`,
+          body: `Time to drink 250ml water! Stay hydrated — every ${settings.hydration_interval}h reminder until goal met.`,
           icon: "/jp-logo.png",
         });
       }
@@ -162,6 +200,30 @@ export default function Notifications() {
     settings.hydration_enabled,
     settings.hydration_interval,
     settings.permission_granted,
+    waterGoalMet,
+  ]);
+
+  // Medication reminder logic
+  useEffect(() => {
+    if (!settings.med_enabled || !settings.permission_granted) return;
+
+    const intervalMs = settings.med_interval * 60 * 60 * 1000;
+    const id = setInterval(async () => {
+      await checkGoals();
+      if (settings.permission_granted && !medsTakenToday) {
+        new Notification("💊 JP Fitness Medication", {
+          body: `Don't forget your scheduled medication. Check your schedule now.`,
+          icon: "/jp-logo.png",
+        });
+      }
+    }, intervalMs);
+
+    return () => clearInterval(id);
+  }, [
+    settings.med_enabled,
+    settings.med_interval,
+    settings.permission_granted,
+    medsTakenToday,
   ]);
 
   // Calculate next reminder time
@@ -202,20 +264,69 @@ export default function Notifications() {
         </div>
       </div>
 
-      {/* Permission Status */}
-      <div className={`rounded-2xl p-4 flex items-center justify-between border transition-all ${settings.permission_granted ? "glass-card border-emerald-500/20" : "glass-card border-amber-500/20"}`}>
-        <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${settings.permission_granted ? "bg-emerald-100 dark:bg-emerald-900/20" : "bg-amber-100 dark:bg-amber-900/20"}`}>
-            {settings.permission_granted ? <CheckCircle className="w-5 h-5 text-emerald-600" /> : <AlertTriangle className="w-5 h-5 text-amber-600" />}
-          </div>
-          <div>
-            <p className="text-sm font-bold">{settings.permission_granted ? "Alerts Enabled" : "Alerts Disabled"}</p>
-            <p className="text-[10px] text-muted-foreground">{settings.permission_granted ? "You're all set to receive reminders" : "Grant permission to get notifications"}</p>
+      {/* Notification Onboarding */}
+      {!settings.permission_granted && !settings.onboarding_dismissed && (
+        <div className="rounded-3xl bg-slate-900 text-white p-8 relative overflow-hidden animate-in slide-in-from-top duration-500">
+          <div className="absolute -right-20 -top-20 w-64 h-64 bg-primary/20 rounded-full blur-3xl" />
+          <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
+            <div className="flex-1 text-center md:text-left">
+              <h3 className="font-display text-2xl font-black mb-3">Enable Smart Reminders</h3>
+              <p className="text-white/60 text-sm leading-relaxed mb-6">
+                JP Fitness uses real-time notifications to help you hit your hydration and medication goals. 
+                Consistency is the key to transformation — let us help you stay on track.
+              </p>
+              <div className="flex flex-wrap gap-3 justify-center md:justify-start">
+                <button 
+                  onClick={requestPermission}
+                  className="px-6 py-3 rounded-xl bg-primary text-white font-bold text-sm shadow-xl hover:scale-105 transition-transform"
+                >
+                  Enable Now
+                </button>
+                <button 
+                  onClick={() => saveSettings({ onboarding_dismissed: true })}
+                  className="px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-sm transition-colors"
+                >
+                  Maybe Later
+                </button>
+              </div>
+            </div>
+            <div className="w-32 h-32 md:w-48 md:h-48 rounded-[2rem] bg-gradient-brand flex items-center justify-center shadow-2xl transform rotate-3">
+              <BellRing className="w-16 h-16 md:w-24 md:h-24 text-white" />
+            </div>
           </div>
         </div>
-        {!settings.permission_granted && (
-          <button onClick={requestPermission} className="px-3 py-1.5 rounded-lg bg-gradient-brand text-primary-foreground text-xs font-bold shadow-brand">Enable</button>
-        )}
+      )}
+
+      {/* Permission Status & Test Mode */}
+      <div className={`rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between border transition-all gap-4 ${settings.permission_granted ? "glass-card border-emerald-500/20" : "glass-card border-amber-500/20"}`}>
+        <div className="flex items-center gap-4">
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${settings.permission_granted ? "bg-emerald-100 dark:bg-emerald-900/20 shadow-lg" : "bg-amber-100 dark:bg-amber-900/20 shadow-lg"}`}>
+            {settings.permission_granted ? <CheckCircle className="w-6 h-6 text-emerald-600" /> : <AlertTriangle className="w-6 h-6 text-amber-600" />}
+          </div>
+          <div>
+            <p className="text-base font-black">{settings.permission_granted ? "Notifications Live" : "Alerts Blocked"}</p>
+            <p className="text-xs text-muted-foreground font-medium">{settings.permission_granted ? "Status: Receiving system alerts" : "Action: Grant browser permission"}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          {!settings.permission_granted && (
+            <button onClick={requestPermission} className="flex-1 md:flex-none px-6 py-2.5 rounded-xl bg-gradient-brand text-primary-foreground text-sm font-black shadow-brand active:scale-95 transition-all">Enable Permissions</button>
+          )}
+          {settings.permission_granted && (
+            <button 
+              onClick={triggerTestNotification} 
+              className={cn(
+                "flex-1 md:flex-none px-6 py-2.5 rounded-xl text-sm font-black transition-all flex items-center justify-center gap-2",
+                showTestStatus === "success" ? "bg-emerald-500 text-white" : 
+                showTestStatus === "failure" ? "bg-rose-500 text-white" : 
+                "bg-secondary text-muted-foreground hover:bg-secondary/80"
+              )}
+            >
+              {showTestStatus === "success" ? <CheckCircle className="w-4 h-4" /> : <Zap className="w-4 h-4" />}
+              {showTestStatus === "success" ? "Success!" : showTestStatus === "failure" ? "Failed" : "Test Notification"}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Unified Reminder Sections */}

@@ -42,14 +42,14 @@ Deno.serve(async (req: Request) => {
     const sys = `You are a registered dietitian. Suggest 4 realistic meals tailored to the user. Return ONLY JSON in this exact shape:
 {"meals":[{"name":"","meal_time":"Breakfast|Lunch|Dinner|Snack","kcal":0,"protein_g":0,"carbs_g":0,"fat_g":0,"vitamins":["B12"],"minerals":["Iron"],"desc":""}]}
 Pick vitamins/minerals targeted to the user's goal (e.g. iron + B12 for weight loss/energy, calcium + magnesium for muscle gain).`;
-    const user = `Goal: ${goal}. Daily calorie target: ${calorie_goal}. Already eaten: ${current_kcal} kcal. Remaining: ${remaining} kcal. Gender: ${gender}. Suggest 4 meals fitting these constraints.`;
+    const userPrompt = `Goal: ${goal}. Daily calorie target: ${calorie_goal}. Already eaten: ${current_kcal} kcal. Remaining: ${remaining} kcal. Gender: ${gender}. Suggest 4 meals fitting these constraints.`;
 
     const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [{ role: "system", content: sys }, { role: "user", content: user }],
+        model: "google/gemini-1.5-flash",
+        messages: [{ role: "system", content: sys }, { role: "user", content: userPrompt }],
         response_format: { type: "json_object" },
       }),
     });

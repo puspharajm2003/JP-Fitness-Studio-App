@@ -173,11 +173,18 @@ export default function AdminCRMAdvanced() {
               { id: "members", label: "Members", icon: Users },
               { id: "revenue", label: "Revenue", icon: DollarSign },
               { id: "attendance", label: "Attendance", icon: Calendar },
+              { id: "audit", label: "Audit Logs", icon: ShieldCheck, to: "/admin/audit-logs" },
               ...(isSuperAdmin ? [{ id: "management", label: "Super Admin", icon: ShieldCheck }] : []),
             ].map(item => (
               <button
                 key={item.id}
-                onClick={() => setActiveTab(item.id as any)}
+                onClick={() => {
+                  if ("to" in item) {
+                    nav(item.to as string);
+                  } else {
+                    setActiveTab(item.id as any);
+                  }
+                }}
                 className={cn(
                   "w-full flex items-center gap-3.5 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all duration-300",
                   activeTab === item.id

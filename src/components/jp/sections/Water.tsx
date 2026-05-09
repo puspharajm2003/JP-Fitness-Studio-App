@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/providers/AuthProvider";
 import { useProfile } from "@/lib/useProfile";
-import { Bell, GlassWater, Minus, Plus } from "lucide-react";
+import { Bell, GlassWater, Minus, Plus, Clock } from "lucide-react";
 import { toast } from "sonner";
 import gsap from "gsap";
 import { today } from "@/lib/dateUtil";
+import { cn } from "@/lib/utils";
 
 const STEP = 250;
 const REMIND_KEY = "jp-water-last-remind";
@@ -56,9 +57,33 @@ export default function Water() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl bg-gradient-brand-3 p-6 text-primary-foreground shadow-brand">
-        <p className="text-xs uppercase tracking-widest opacity-90 flex items-center gap-1.5"><Bell className="w-3 h-3"/>Reminders every 2 hours until goal</p>
-        <h2 className="font-display text-3xl font-extrabold mt-1">{ml} <span className="text-base font-normal opacity-80">/ {goal} ml</span></h2>
+      <div className="rounded-3xl bg-gradient-brand-3 p-6 text-primary-foreground shadow-brand relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-6 opacity-20 transform rotate-12 scale-150">
+           <Bell className="w-20 h-20" />
+        </div>
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-90 flex items-center gap-2">
+              <Bell className="w-3 h-3 animate-bounce"/> 
+              Active Protocols
+            </p>
+            <div className={cn(
+              "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest",
+              ml >= goal ? "bg-emerald-500 text-white" : "bg-white/20 text-white"
+            )}>
+              {ml >= goal ? "Goal Achieved" : "Scheduled: 2h Interval"}
+            </div>
+          </div>
+          <h2 className="font-display text-5xl font-black mt-1">
+            {ml} <span className="text-xl font-medium opacity-60">/ {goal} ml</span>
+          </h2>
+          {ml < goal && (
+            <p className="text-xs font-bold opacity-70 mt-3 flex items-center gap-2">
+              <Clock className="w-3 h-3" />
+              Next reminder in: {Math.max(0, Math.floor((INTERVAL - (Date.now() - parseInt(localStorage.getItem(REMIND_KEY) || "0"))) / 60000))} mins
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="glass-card rounded-3xl p-8 flex items-center gap-8 flex-wrap justify-center">
