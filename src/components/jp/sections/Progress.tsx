@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/providers/AuthProvider";
 import { useProfile } from "@/lib/useProfile";
@@ -10,10 +10,12 @@ import {
   Calendar, Weight, Calculator, Shield,
   Trash2, History, RefreshCw, Share2, Download, Save, 
   ScanLine, Camera, Target as TargetIcon, Trophy,
-  Flame, Dumbbell, Eye, TrendingUp as TrendingUpIcon
+  Flame, Dumbbell, Eye, TrendingUp as TrendingUpIcon,
+  ChevronRight, CheckCircle2, Award
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import gsap from "gsap";
 
 // AI Body Personal - Animated Progress Visualization
 function AIPersonalBody({ gender, startWeight, currentWeight, targetWeight, goalType }: {
@@ -237,282 +239,423 @@ export default function Progress() {
 
   const bmiStatus = bmi ? getBmiStatus(parseFloat(bmi)) : null;
 
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (containerRef.current) {
+      gsap.fromTo(
+        containerRef.current.querySelectorAll(".progress-animate"),
+        { opacity: 0, y: 20 },
+        { opacity: 1, y: 0, duration: 0.8, stagger: 0.1, ease: "power4.out" }
+      );
+    }
+  }, []);
+
   return (
-    <div className="space-y-6">
-      {/* Stats cards */}
-      <div className="grid md:grid-cols-3 gap-3">
-        <StatCard title="Current Weight" value={latest?`${latest} kg`:"—"} icon={Scale} />
-        <StatCard title={goalType === "weight_loss" ? "Total Lost" : "Total Gained"} value={`${Math.abs(diff).toFixed(1)} kg`} icon={goalType === "weight_loss" ? TrendingDown : TrendingUp} hi />
-        <StatCard 
-           title="Remaining" 
-           value={remaining !== null ? `${Math.abs(remaining).toFixed(1)} kg` : (target ? "No logs yet" : "Set Goal ↓")} 
-           icon={Target} 
-        />
-      </div>
+    <div ref={containerRef} className="min-h-screen pb-24 bg-slate-50 dark:bg-slate-950/50">
+      <div className="max-w-7xl mx-auto px-4 py-8 space-y-12">
+        
+        {/* Premium Transformation Header */}
+        <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#334155] p-8 md:p-12 text-white shadow-2xl border border-white/10 group progress-animate">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-[hsl(var(--brand-1))]/10 rounded-full blur-[100px] -mr-48 -mt-48 group-hover:bg-[hsl(var(--brand-1))]/20 transition-all duration-1000" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-[hsl(var(--brand-2))]/10 rounded-full blur-[80px] -ml-32 -mb-32" />
+          
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
+            <div className="space-y-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-[hsl(var(--brand-1))]/20 rounded-full text-[10px] font-black uppercase tracking-widest text-[hsl(var(--brand-1))] border border-[hsl(var(--brand-1))]/20">
+                <TrendingUpIcon className="w-3 h-3" />
+                Metabolic Transformation Hub
+              </div>
+              <h1 className="text-4xl md:text-6xl font-black tracking-tighter">
+                Metric <span className="bg-gradient-to-r from-[hsl(var(--brand-1))] to-[hsl(var(--brand-2))] bg-clip-text text-transparent">Evolution</span>.
+              </h1>
+              <p className="text-slate-400 font-medium max-w-xl text-sm md:text-base leading-relaxed">
+                Quantifying your journey through precise biometric tracking and predictive metabolic forecasting.
+              </p>
+            </div>
+
+            <div className="flex gap-4">
+               <button 
+                onClick={() => setShowGoalInput(s => !s)}
+                className="px-6 py-3 rounded-2xl bg-white/5 border border-white/10 text-white font-black text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all"
+              >
+                Configure Goals
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid md:grid-cols-3 gap-6 progress-animate">
+          <GlassCard className="p-8 group hover:scale-105 transition-all duration-500">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 rounded-2xl bg-sky-500/10 text-sky-500 flex items-center justify-center shadow-inner group-hover:rotate-12 transition-transform">
+                <Scale className="w-6 h-6" />
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Current Mass</span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-5xl font-black tracking-tighter text-slate-900 dark:text-white">{latest || "—"}</span>
+              <span className="text-xs font-black text-slate-400 uppercase tracking-widest">kg</span>
+            </div>
+          </GlassCard>
+
+          <GlassCard className="p-8 group hover:scale-105 transition-all duration-500">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shadow-inner group-hover:rotate-12 transition-transform">
+                {goalType === "weight_loss" ? <TrendingDown className="w-6 h-6" /> : <TrendingUp className="w-6 h-6" />}
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total Net Delta</span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-5xl font-black tracking-tighter text-emerald-500">{Math.abs(diff).toFixed(1)}</span>
+              <span className="text-xs font-black text-slate-400 uppercase tracking-widest">kg {diff <= 0 ? "Lost" : "Gained"}</span>
+            </div>
+          </GlassCard>
+
+          <GlassCard className="p-8 group hover:scale-105 transition-all duration-500">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center shadow-inner group-hover:rotate-12 transition-transform">
+                <Target className="w-6 h-6" />
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Goal Proximity</span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-5xl font-black tracking-tighter text-slate-900 dark:text-white">
+                {remaining !== null ? Math.abs(remaining).toFixed(1) : "—"}
+              </span>
+              <span className="text-xs font-black text-slate-400 uppercase tracking-widest">kg to target</span>
+            </div>
+          </GlassCard>
+        </div>
 
       {/* Daily Goals Prompt */}
-      <div className="glass-card rounded-2xl p-5 border-primary/10">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Zap className="w-5 h-5 text-primary" />
+        <div className="grid lg:grid-cols-2 gap-8 progress-animate">
+          {/* Goal Management */}
+          <GlassCard className="p-8 space-y-8">
+            <div className="flex items-center justify-between">
+              <h3 className="text-2xl font-black tracking-tight">Biometric Configuration</h3>
+              <div className="w-10 h-10 rounded-xl bg-[hsl(var(--brand-1))]/10 text-[hsl(var(--brand-1))] flex items-center justify-center">
+                <TargetIcon className="w-5 h-5" />
+              </div>
             </div>
-            <div>
-              <h4 className="font-display font-bold text-sm">Daily Fitness Goals</h4>
-              <p className="text-[10px] text-muted-foreground">Keep your intake and activity in check</p>
-            </div>
-          </div>
-          <button onClick={() => setShowDailyGoals(!showDailyGoals)} className="px-3 py-1.5 rounded-lg bg-secondary text-xs font-bold hover:bg-secondary/80">
-            {showDailyGoals ? "Close" : "Adjust Goals"}
-          </button>
-        </div>
-        
-        {showDailyGoals ? (
-          <div className="grid grid-cols-2 gap-3 animate-pop">
-            <div>
-              <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Daily Calorie Goal</label>
-              <input 
-                type="number" 
-                value={dailyGoals.kcal} 
-                onChange={e => setDailyGoals({...dailyGoals, kcal: parseInt(e.target.value)})}
-                className="w-full px-3 py-2 rounded-xl bg-secondary border border-border text-sm outline-none"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Daily Step Goal</label>
-              <input 
-                type="number" 
-                value={dailyGoals.steps} 
-                onChange={e => setDailyGoals({...dailyGoals, steps: parseInt(e.target.value)})}
-                className="w-full px-3 py-2 rounded-xl bg-secondary border border-border text-sm outline-none"
-              />
-            </div>
-            <button onClick={saveDailyGoals} className="col-span-2 py-2.5 rounded-xl bg-gradient-brand text-primary-foreground font-bold text-sm shadow-brand mt-1">
-              Save Daily Goals
-            </button>
-          </div>
-        ) : (
-          <div className="flex gap-6">
-            <div>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase">Calories</p>
-              <p className="font-display font-black text-lg">{profile?.daily_calorie_goal || 2000} <span className="text-[10px] font-medium">kcal</span></p>
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase">Steps</p>
-              <p className="font-display font-black text-lg">{profile?.daily_step_goal || 10000} <span className="text-[10px] font-medium">steps</span></p>
-            </div>
-          </div>
-        )}
-      </div>
 
-      {/* Goal weight input / Target Weight prompt */}
-      <div className="glass-card rounded-2xl p-5 border-primary/10 relative overflow-hidden">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
-              <Target className="w-5 h-5 text-accent" />
-            </div>
-            <div>
-              <h4 className="font-display font-bold text-sm">Target Weight</h4>
-              <p className="text-[10px] text-muted-foreground">Define your ultimate goal</p>
-            </div>
-          </div>
-          <button 
-            onClick={() => setShowGoalInput(s => !s)}
-            className="px-4 py-1.5 rounded-lg bg-gradient-brand text-primary-foreground text-xs font-bold shadow-brand"
-          >
-            {target ? "Change Goal" : "Set Goal"}
-          </button>
-        </div>
-
-      {/* Goal weight input */}
-      {showGoalInput && (
-        <div className="glass-card rounded-2xl p-5 animate-pop">
-          <h4 className="font-display font-bold text-sm mb-3 flex items-center gap-2">
-            <Target className="w-4 h-4" style={{ color: "hsl(var(--primary))" }} /> Set Your Weight Goal
-          </h4>
-          <div className="flex gap-2">
-            <input
-              value={goalWeight}
-              onChange={e => setGoalWeight(e.target.value)}
-              type="number"
-              step="0.1"
-              placeholder={`Current: ${latest || "?"} kg — Enter target`}
-              className="flex-1 px-3 py-2.5 rounded-xl bg-secondary border border-border text-sm outline-none focus:ring-2 focus:ring-primary/30"
-            />
-            <button onClick={saveGoal} className="px-5 py-2.5 rounded-xl bg-gradient-brand text-primary-foreground font-semibold text-sm">
-              Save Goal
-            </button>
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            {latest && goalWeight ? (
-              parseFloat(goalWeight) < latest
-                ? `You need to lose ${(latest - parseFloat(goalWeight)).toFixed(1)} kg`
-                : `You need to gain ${(parseFloat(goalWeight) - latest).toFixed(1)} kg`
-            ) : "Enter your target weight"}
-          </p>
-        </div>
-      )}
-    </div>
-
-      {/* AI Body Personal Visualization */}
-      {weights.length >= 2 && target && start && latest && (
-        <div className="grid md:grid-cols-2 gap-4 animate-pop">
-          <AIPersonalBody
-            gender={profile?.gender || null}
-            startWeight={Number(start)}
-            currentWeight={Number(latest)}
-            targetWeight={Number(target)}
-            goalType={goalType}
-          />
-          
-          {/* Health Insights */}
-          <div className="glass-card rounded-3xl p-6 border-none shadow-xl bg-white dark:bg-slate-900/50 flex flex-col">
-            <div className="flex items-center gap-2 mb-4">
-              <Trophy className="w-5 h-5 text-amber-500" />
-              <h3 className="font-display font-bold text-lg">Health Metrics</h3>
-            </div>
-            <div className="grid grid-cols-2 gap-6 mb-6">
-              <div className="space-y-1">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">BMI Status</p>
-                <div className="flex items-baseline gap-2">
-                  <p className="text-3xl font-black">{bmi || "--"}</p>
-                  {bmiStatus && (
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary ${bmiStatus.color}`}>
-                      {bmiStatus.label}
-                    </span>
-                  )}
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Daily Burn Goal</label>
+                  <div className="relative">
+                    <input 
+                      type="number" 
+                      value={dailyGoals.kcal} 
+                      onChange={e => setDailyGoals({...dailyGoals, kcal: parseInt(e.target.value)})}
+                      className="w-full px-5 py-4 rounded-2xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 font-bold text-sm outline-none focus:ring-4 focus:ring-[hsl(var(--brand-1))]/20 transition-all"
+                    />
+                    <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-400">KCAL</span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Step Objective</label>
+                  <div className="relative">
+                    <input 
+                      type="number" 
+                      value={dailyGoals.steps} 
+                      onChange={e => setDailyGoals({...dailyGoals, steps: parseInt(e.target.value)})}
+                      className="w-full px-5 py-4 rounded-2xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 font-bold text-sm outline-none focus:ring-4 focus:ring-[hsl(var(--brand-1))]/20 transition-all"
+                    />
+                    <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-400">STEPS</span>
+                  </div>
                 </div>
               </div>
-              <div className="space-y-1">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Healthy Range</p>
-                <p className="text-xl font-extrabold">
-                  {healthyMin && healthyMax ? `${healthyMin}-${healthyMax}` : "--"}
-                  <span className="text-xs font-normal text-muted-foreground ml-1">kg</span>
-                </p>
-                <p className="text-[8px] text-muted-foreground italic">Standard for {profile?.height_cm || "—"} cm</p>
-              </div>
-            </div>
-            <div className="mt-auto pt-6 border-t border-border/50">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-bold">Goal Progress</p>
-                <p className="text-xs font-black text-primary">
-                  {remaining !== null ? `${Math.abs(remaining).toFixed(1)} kg remaining` : "--"}
-                </p>
-              </div>
-              <div className="h-2 rounded-full bg-secondary overflow-hidden">
-                <div className="h-full bg-gradient-brand transition-all duration-1000" style={{ width: `${progressPercent}%` }} />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Weight chart */}
-      <div className="glass-card rounded-2xl p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display font-bold">Weight progress</h3>
-          <form onSubmit={addWeight} className="flex gap-2">
-            <input value={w} onChange={e=>setW(e.target.value)} type="number" step="0.1" placeholder="kg" className="w-24 px-3 py-2 rounded-lg bg-secondary border border-border text-sm outline-none" />
-            <button className="px-4 py-2 rounded-lg bg-gradient-brand text-primary-foreground text-sm font-semibold flex items-center gap-1"><Plus className="w-4 h-4"/>Log</button>
-          </form>
-        </div>
-        <div className="h-44 flex items-end gap-1.5">
-          {weights.length === 0 && <p className="text-sm text-muted-foreground m-auto">No data yet — log your first weight above.</p>}
-          {weights.map((d,i) => {
-            const h = max === min ? 50 : ((d.weight_kg - min)/(max-min)) * 90 + 10;
-            const isLatest = i === weights.length - 1;
-            return (
-              <div key={d.id} className="flex-1 flex flex-col items-center gap-1 group relative">
-                <div className={`w-full rounded-t-md transition-all ${isLatest ? "bg-gradient-to-t from-emerald-500 to-teal-400" : "bg-gradient-brand"}`} style={{height:`${h}%`}} title={`${d.weight_kg} kg`} />
-                {/* Tooltip on hover */}
-                <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 rounded-lg bg-foreground text-background text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
-                  {d.weight_kg} kg
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Target Body Mass</label>
+                <div className="flex gap-3">
+                  <input
+                    value={goalWeight}
+                    onChange={e => setGoalWeight(e.target.value)}
+                    type="number"
+                    step="0.1"
+                    placeholder={`Current: ${latest || "?"} kg`}
+                    className="flex-1 px-5 py-4 rounded-2xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 font-bold text-sm outline-none focus:ring-4 focus:ring-[hsl(var(--brand-1))]/20 transition-all"
+                  />
+                  <button onClick={saveGoal} className="px-8 py-4 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black text-[10px] uppercase tracking-widest shadow-xl hover:scale-105 active:scale-95 transition-all">
+                    Set Goal
+                  </button>
                 </div>
-                {i % Math.ceil(weights.length/8) === 0 && <span className="text-[9px] text-muted-foreground">{new Date(d.date).getDate()}/{new Date(d.date).getMonth()+1}</span>}
               </div>
-            );
-          })}
-        </div>
-        {/* Target line indicator */}
-        {target && weights.length > 0 && (
-          <div className="mt-2 flex items-center gap-2">
-            <div className="h-px flex-1 border-t-2 border-dashed border-primary/30" />
-            <span className="text-[10px] font-semibold text-primary">Goal: {target} kg</span>
-            <div className="h-px flex-1 border-t-2 border-dashed border-primary/30" />
-          </div>
-        )}
-        
-        {/* Weight History Log */}
-        {weights.length > 0 && (
-          <div className="mt-8 overflow-hidden rounded-xl border border-border/50">
-            <div className="bg-secondary/50 px-4 py-2 border-b border-border/50 flex justify-between items-center">
-              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                <History className="w-3 h-3" /> Recent Logs
-              </h4>
+
+              <button 
+                onClick={saveDailyGoals}
+                className="w-full py-4 rounded-2xl bg-gradient-to-r from-[hsl(var(--brand-1))] to-[hsl(var(--brand-2))] text-white font-black text-xs uppercase tracking-widest shadow-xl hover:scale-105 active:scale-95 transition-all"
+              >
+                Update Global Objectives
+              </button>
             </div>
-            <div className="max-h-48 overflow-y-auto">
-              <table className="w-full text-sm text-left">
-                <tbody className="divide-y divide-border/50">
-                  {/* Reverse weights array for the list so newest is on top */}
+          </GlassCard>
+
+          {/* Goal Visualization Card */}
+          <GlassCard className="p-8 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white border-white/10 flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <h3 className="text-2xl font-black tracking-tight">Target Summary</h3>
+              <Award className="w-8 h-8 text-amber-500" />
+            </div>
+
+            <div className="py-8 space-y-6">
+              <div className="flex items-center justify-between text-xs font-black uppercase tracking-widest text-slate-400">
+                <span>Current Status</span>
+                <span className="text-[hsl(var(--brand-1))]">{Math.round(progressPercent)}% Accomplished</span>
+              </div>
+              <div className="h-4 bg-white/5 rounded-full overflow-hidden p-1 border border-white/5">
+                <div 
+                  className="h-full bg-gradient-to-r from-[hsl(var(--brand-1))] via-[hsl(var(--brand-2))] to-[hsl(var(--brand-1))] bg-[length:200%_auto] rounded-full shadow-[0_0_15px_hsl(var(--brand-1))] transition-all duration-1000 animate-gradient-x"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+              <p className="text-sm text-slate-300 font-medium leading-relaxed">
+                You are currently <span className="text-white font-bold">{Math.abs(remaining || 0).toFixed(1)}kg</span> away from your ideal metabolic baseline. Stay consistent with your daily protocols.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Daily Calorie</p>
+                <p className="text-xl font-black">{profile?.daily_calorie_goal || 2000} kcal</p>
+              </div>
+              <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Step Goal</p>
+                <p className="text-xl font-black">{profile?.daily_step_goal || 10000}</p>
+              </div>
+            </div>
+          </GlassCard>
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-10 progress-animate">
+          {/* AI Body Visualization Section */}
+          <div className="space-y-8">
+            <div className="flex items-center justify-between px-2">
+              <h3 className="text-xl font-black uppercase tracking-widest text-slate-400">Morphology Analysis</h3>
+              <Eye className="w-5 h-5 text-[hsl(var(--brand-1))]" />
+            </div>
+            {weights.length >= 2 && target && start && latest ? (
+              <AIPersonalBody
+                gender={profile?.gender || null}
+                startWeight={Number(start)}
+                currentWeight={Number(latest)}
+                targetWeight={Number(target)}
+                goalType={goalType}
+              />
+            ) : (
+              <GlassCard className="p-12 text-center bg-slate-900 text-white/50 italic text-sm">
+                Awaiting sufficient biometric data for neural body synthesis.
+              </GlassCard>
+            )}
+
+            <GlassCard className="p-8 space-y-6">
+              <div className="flex items-center gap-3">
+                <Trophy className="w-6 h-6 text-amber-500" />
+                <h3 className="text-2xl font-black tracking-tight">Biological Insights</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-1 p-4 rounded-2xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10">
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">BMI Analysis</p>
+                  <div className="flex items-baseline gap-2">
+                    <p className="text-3xl font-black">{bmi || "--"}</p>
+                    {bmiStatus && (
+                      <span className={cn("text-[9px] font-black px-2 py-0.5 rounded-full bg-white dark:bg-white/10 shadow-sm", bmiStatus.color)}>
+                        {bmiStatus.label}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-1 p-4 rounded-2xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10">
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Optimal Baseline</p>
+                  <p className="text-2xl font-black">
+                    {healthyMin && healthyMax ? `${healthyMin}-${healthyMax}` : "--"}
+                    <span className="text-[10px] font-black text-slate-400 ml-1">KG</span>
+                  </p>
+                </div>
+              </div>
+            </GlassCard>
+          </div>
+
+          {/* Weight Evolution Chart */}
+          <div className="space-y-8">
+            <div className="flex items-center justify-between px-2">
+              <h3 className="text-xl font-black uppercase tracking-widest text-slate-400">Weight Evolution</h3>
+              <div className="flex gap-2">
+                <form onSubmit={addWeight} className="flex gap-2">
+                  <input 
+                    value={w} 
+                    onChange={e=>setW(e.target.value)} 
+                    type="number" 
+                    step="0.1" 
+                    placeholder="New weight" 
+                    className="w-28 px-4 py-2 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs font-bold outline-none focus:ring-2 focus:ring-[hsl(var(--brand-1))]"
+                  />
+                  <button className="px-4 py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black text-[10px] uppercase tracking-widest shadow-xl">
+                    Sync
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            <GlassCard className="p-8">
+              <div className="h-64 flex items-end gap-1.5 mb-8">
+                {weights.length === 0 ? (
+                  <div className="m-auto text-center space-y-3">
+                    <History className="w-10 h-10 mx-auto text-slate-300" />
+                    <p className="text-xs font-black uppercase tracking-widest text-slate-400">No telemetry logged</p>
+                  </div>
+                ) : (
+                  weights.map((d,i) => {
+                    const h = max === min ? 50 : ((d.weight_kg - min)/(max-min)) * 85 + 15;
+                    const isLatest = i === weights.length - 1;
+                    return (
+                      <div key={d.id} className="flex-1 flex flex-col items-center gap-2 group relative">
+                        <div 
+                          className={cn(
+                            "w-full rounded-t-xl transition-all duration-500 group-hover:brightness-110",
+                            isLatest ? "bg-gradient-to-t from-[hsl(var(--brand-1))] to-[hsl(var(--brand-2))]" : "bg-slate-200 dark:bg-white/10"
+                          )} 
+                          style={{height:`${h}%`}} 
+                        />
+                        <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-xl bg-slate-900 text-white text-[10px] font-black opacity-0 group-hover:opacity-100 transition-all shadow-2xl scale-50 group-hover:scale-100 whitespace-nowrap z-50">
+                          {d.weight_kg} kg
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-white/5">
+                <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <span>Session History</span>
+                  <span>{weights.length} Entries</span>
+                </div>
+                <div className="max-h-40 overflow-y-auto pr-2 custom-scrollbar">
                   {[...weights].reverse().map(log => (
-                    <tr key={log.id} className="hover:bg-secondary/20 transition-colors">
-                      <td className="px-4 py-2 text-muted-foreground text-xs">
-                        {new Date(log.date).toLocaleDateString()}
-                      </td>
-                      <td className="px-4 py-2 font-bold text-foreground">
-                        {log.weight_kg} kg
-                      </td>
-                      <td className="px-4 py-2 text-right">
-                        <button 
-                          onClick={() => deleteWeight(log.id)}
-                          className="p-1.5 text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded-md transition-colors inline-flex"
-                          title="Delete entry"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
+                    <div key={log.id} className="flex items-center justify-between py-3 group">
+                      <div className="flex items-center gap-4">
+                        <div className="w-2 h-2 rounded-full bg-slate-300 dark:bg-white/10 group-hover:bg-[hsl(var(--brand-1))] transition-colors" />
+                        <div>
+                          <p className="text-xs font-black">{log.weight_kg} kg</p>
+                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">{new Date(log.date).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => deleteWeight(log.id)}
+                        className="p-2 rounded-lg text-slate-300 hover:bg-rose-500 hover:text-white transition-all opacity-0 group-hover:opacity-100"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </div>
+              </div>
+            </GlassCard>
           </div>
-        )}
-      </div>
+        </div>
 
       {/* Comprehensive BMI Tracker (History & Analytics) */}
       <BmiCalculator />
 
       {/* Measurements section */}
-      <div className="glass-card rounded-2xl p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display font-bold">Inches / Measurements</h3>
-          <button onClick={()=>setShowM(s=>!s)} className="px-4 py-2 rounded-lg bg-gradient-brand text-primary-foreground text-sm font-semibold flex items-center gap-1"><Plus className="w-4 h-4"/>Add</button>
-        </div>
-        {showM && (
-          <form onSubmit={addMeas} className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
-            {(["chest_in","waist_in","hips_in","arms_in","thighs_in"] as const).map(k => (
-              <input key={k} placeholder={k.replace("_in","").replace(/^./,c=>c.toUpperCase())+" (in)"} value={(m as any)[k]} onChange={e=>setM({...m,[k]:e.target.value})} type="number" step="0.1" className="px-3 py-2 rounded-lg bg-secondary border border-border text-sm outline-none" />
-            ))}
-            <button className="col-span-2 md:col-span-5 py-2 rounded-lg bg-gradient-brand text-primary-foreground text-sm font-semibold">Save measurements</button>
-          </form>
-        )}
-        <div className="overflow-auto">
-          <table className="w-full text-sm">
-            <thead><tr className="text-left text-xs uppercase text-muted-foreground border-b border-border">
-              <th className="py-2">Date</th><th>Chest</th><th>Waist</th><th>Hips</th><th>Arms</th><th>Thighs</th>
-            </tr></thead>
-            <tbody>
-              {meas.map(r => <tr key={r.id} className="border-b border-border/50">
-                <td className="py-2">{new Date(r.date).toLocaleDateString()}</td>
-                <td>{r.chest_in??"—"}</td><td>{r.waist_in??"—"}</td><td>{r.hips_in??"—"}</td><td>{r.arms_in??"—"}</td><td>{r.thighs_in??"—"}</td>
-              </tr>)}
-              {meas.length === 0 && <tr><td colSpan={6} className="py-4 text-muted-foreground text-center">No measurements yet.</td></tr>}
-            </tbody>
-          </table>
+        <div className="space-y-6 progress-animate">
+          <div className="flex items-center justify-between px-2">
+            <h3 className="text-xl font-black uppercase tracking-widest text-slate-400">Circumference Telemetry</h3>
+            <Ruler className="w-5 h-5 text-[hsl(var(--brand-1))]" />
+          </div>
+
+          <GlassCard className="p-8">
+            <div className="flex items-center justify-between mb-8">
+              <button 
+                onClick={()=>setShowM(s=>!s)}
+                className="px-6 py-3 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center gap-2 hover:scale-105 transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                Add Dimension
+              </button>
+              <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">System Unit: Inches</div>
+            </div>
+
+            {showM && (
+              <form onSubmit={addMeas} className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 p-6 rounded-[2rem] bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 animate-in slide-in-from-top-4 duration-500">
+                {(["chest_in","waist_in","hips_in","arms_in","thighs_in"] as const).map(k => (
+                  <div key={k} className="space-y-2">
+                    <label className="text-[9px] font-black uppercase text-slate-400 ml-1">{k.split('_')[0]}</label>
+                    <input 
+                      placeholder="0.0" 
+                      value={(m as any)[k]} 
+                      onChange={e=>setM({...m,[k]:e.target.value})} 
+                      type="number" 
+                      step="0.1" 
+                      className="w-full px-4 py-3 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 font-bold text-sm outline-none focus:ring-2 focus:ring-[hsl(var(--brand-1))]" 
+                    />
+                  </div>
+                ))}
+                <button className="col-span-2 md:col-span-5 py-4 rounded-xl bg-gradient-to-r from-[hsl(var(--brand-1))] to-[hsl(var(--brand-2))] text-white font-black text-xs uppercase tracking-widest shadow-lg">
+                  Archive Measurements
+                </button>
+              </form>
+            )}
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 dark:border-white/5">
+                    <th className="py-4 px-4">Timestamp</th>
+                    <th className="py-4 px-4 text-emerald-500">Chest</th>
+                    <th className="py-4 px-4 text-emerald-500">Waist</th>
+                    <th className="py-4 px-4 text-emerald-500">Hips</th>
+                    <th className="py-4 px-4 text-emerald-500">Arms</th>
+                    <th className="py-4 px-4 text-emerald-500">Thighs</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+                  {meas.map(r => (
+                    <tr key={r.id} className="group hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                      <td className="py-4 px-4 text-xs font-black text-slate-400">{new Date(r.date).toLocaleDateString()}</td>
+                      <td className="py-4 px-4 text-sm font-black text-slate-900 dark:text-white">{r.chest_in??"—"}</td>
+                      <td className="py-4 px-4 text-sm font-black text-slate-900 dark:text-white">{r.waist_in??"—"}</td>
+                      <td className="py-4 px-4 text-sm font-black text-slate-900 dark:text-white">{r.hips_in??"—"}</td>
+                      <td className="py-4 px-4 text-sm font-black text-slate-900 dark:text-white">{r.arms_in??"—"}</td>
+                      <td className="py-4 px-4 text-sm font-black text-slate-900 dark:text-white">{r.thighs_in??"—"}</td>
+                    </tr>
+                  ))}
+                  {meas.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-xs font-black uppercase tracking-widest text-slate-400 italic">
+                        No temporal data available.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </GlassCard>
         </div>
       </div>
+    </div>
+  );
+}
+
+function GlassCard({ children, className, variant = "default", onClick }: any) {
+  const variants: any = {
+    default: "bg-white/60 dark:bg-black/40 border-slate-200 dark:border-white/10",
+    interactive: "bg-white/60 dark:bg-black/40 border-slate-200 dark:border-white/10 hover:bg-white/80 dark:hover:bg-black/60 hover:scale-[1.02] active:scale-[0.98] transition-all duration-500",
+  };
+  return (
+    <div 
+      onClick={onClick}
+      className={cn(
+        "rounded-[2.5rem] border backdrop-blur-xl shadow-xl overflow-hidden",
+        variants[variant],
+        className
+      )}
+    >
+      {children}
     </div>
   );
 }

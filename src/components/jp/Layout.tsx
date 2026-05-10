@@ -35,7 +35,8 @@ export default function Layout({ children }: { children: ReactNode }) {
   const [showIOSGuide, setShowIOSGuide] = useState(false);
   const initials = (user?.user_metadata?.full_name || user?.email || "U").slice(0,1).toUpperCase();
   const { canInstall, isInstalled, isIOS, install } = usePWAInstall();
-  const { profile: layoutProfile } = useProfile();
+  const { profile: layoutProfile, update: updateProfile } = useProfile();
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   // Admin nav items
   const adminNav = isAdmin ? [
@@ -44,7 +45,8 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   // Bottom nav includes main items plus admin items for mobile
   const bottomNavItems = [
-    ...navItems.filter(i => ["/", "/progress", "/workout", "/diet", "/profile"].includes(i.to)),
+    ...navItems.filter(i => ["/", "/progress", "/workout", "/diet"].includes(i.to)),
+    { to: "#", label: "More", icon: Settings, onClick: () => setShowMoreMenu(true) },
   ];
 
   // All nav items for sidebar
@@ -235,21 +237,77 @@ export default function Layout({ children }: { children: ReactNode }) {
       )}
 
       {/* Bottom nav (mobile) */}
-      <nav className="lg:hidden fixed bottom-3 left-3 right-3 z-40 glass-card rounded-2xl px-2 py-2">
+      <nav className="lg:hidden fixed bottom-3 left-3 right-3 z-40 glass-card rounded-2xl px-2 py-2 shadow-2xl border-white/20">
         <div className="flex justify-around items-center">
           {bottomNavItems.map(it => {
             const Icon = it.icon;
             const active = loc.pathname === it.to;
-            return (
-              <Link key={it.to} to={it.to} className={cn("flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl transition-all",
-                active ? "bg-gradient-brand text-primary-foreground shadow-brand scale-105" : "text-muted-foreground")}>
+            const isMore = it.label === "More";
+            
+            const content = (
+              <>
                 <Icon className={cn("w-5 h-5 transition-transform", active && "scale-110")} />
                 <span className="text-[10px] mt-0.5 font-semibold">{it.label}</span>
+              </>
+            );
+
+            if (isMore) {
+              return (
+                <button 
+                  key="more" 
+                  onClick={it.onClick}
+                  className="flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-muted-foreground hover:bg-secondary/50 transition-all"
+                >
+                  {content}
+                </button>
+              );
+            }
+
+            return (
+              <Link key={it.to} to={it.to} className={cn("flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl transition-all",
+                active ? "bg-gradient-brand text-primary-foreground shadow-brand scale-105" : "text-muted-foreground hover:bg-secondary/50")}>
+                {content}
               </Link>
             );
           })}
         </div>
       </nav>
+
+      {/* More Menu Overlay (Mobile) */}
+      {showMoreMenu && (
+        <div className="lg:hidden fixed inset-0 z-[60] flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowMoreMenu(false)} />
+          <div className="relative w-full max-w-md bg-card rounded-t-[2.5rem] p-8 pb-12 shadow-2xl border-t border-border animate-slide-up">
+            <div className="w-12 h-1.5 bg-secondary rounded-full mx-auto mb-8" onClick={() => setShowMoreMenu(false)} />
+            
+            <div className="flex items-center justify-between mb-8">
+               <h3 className="text-2xl font-black tracking-tight">Hub Expansion</h3>
+               <button onClick={() => setShowMoreMenu(false)} className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center">
+                 <X className="w-5 h-5" />
+               </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              {navItems.filter(i => !["/", "/progress", "/workout", "/diet"].includes(i.to)).map(it => {
+                const Icon = it.icon;
+                return (
+                  <Link 
+                    key={it.to} 
+                    to={it.to} 
+                    onClick={() => setShowMoreMenu(false)}
+                    className="flex flex-col items-center justify-center gap-3 p-4 rounded-2xl bg-secondary/50 hover:bg-secondary transition-all group"
+                  >
+                    <div className="w-12 h-12 rounded-2xl bg-card flex items-center justify-center shadow-sm group-hover:scale-110 group-hover:bg-primary group-hover:text-white transition-all">
+                      <Icon className="w-6 h-6" />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{it.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

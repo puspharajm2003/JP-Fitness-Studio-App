@@ -32,9 +32,11 @@ export const useProfile = () => {
   }, [user, refresh]);
 
   const update = async (patch: Partial<Profile>) => {
-    if (!user) return;
-    const { data } = await supabase.from("profiles").update(patch as any).eq("id", user.id).select().single();
+    if (!user) return { error: new Error("No user") };
+    const { data, error } = await supabase.from("profiles").update(patch as any).eq("id", user.id).select().single();
+    if (error) return { error };
     if (data) setProfile(data as any);
+    return { data };
   };
 
   return { profile, loading, refresh, update };

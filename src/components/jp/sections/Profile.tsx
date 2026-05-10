@@ -194,7 +194,7 @@ export default function Profile() {
 
   const save = async () => {
     try {
-      await update({
+      const { error } = await update({
         full_name: f.full_name,
         phone: f.phone,
         gender: f.gender,
@@ -210,6 +210,8 @@ export default function Profile() {
         coach_id: f.coach_id || null,
         coach_name: f.coach_name || null,
       });
+
+      if (error) throw error;
       
       if (f.current_weight_kg) {
         await supabase.from("weight_logs").insert({
@@ -283,8 +285,8 @@ export default function Profile() {
 
   const coachExists = f.coach_name && matchCoachByName(f.coach_name) !== undefined;
   
-  // Member lock logic: can only edit if profile is not filled yet, or if admin/coach
-  const canEditPersonalInfo = !profile?.full_name || isAdmin || isCoach;
+  // Unlock personal info editing for all users
+  const canEditPersonalInfo = true;
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-10 px-4">
@@ -560,7 +562,7 @@ export default function Profile() {
               <p className="text-xs text-slate-500 mt-1">Auto-computed from your gender, age, height & weight.</p>
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Metric label="BMI" value={calc.bmi} sub={bmiCategory(calc.bmi)} />
               <Metric label="Body fat" value={calc.bf != null ? `${calc.bf}%` : null} />
               <Metric label="Visceral fat" value={calc.vf != null ? calc.vf : null} sub="Healthy" />

@@ -42,6 +42,8 @@ import { FatIntakeCalculator } from "@/components/FatIntakeCalculator";
 import { CarbohydrateCalculator } from "@/components/CarbohydrateCalculator";
 import { TdeeCalculator } from "@/components/TdeeCalculator";
 import { MacroCalculator } from "@/components/MacroCalculator";
+import gsap from "gsap";
+import { useRef } from "react";
 
 type UnitSystem = "metric" | "imperial";
 type Gender = "male" | "female";
@@ -94,36 +96,131 @@ const activityLabels: Record<ActivityLevel, string> = {
 };
 
 export default function Tool() {
+  const [activeTab, setActiveTab] = useState<"biometrics" | "energy" | "labs">("biometrics");
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (containerRef.current) {
+      gsap.fromTo(
+        containerRef.current.querySelectorAll(".tool-animate"),
+        { opacity: 0, y: 30 },
+        { opacity: 1, y: 0, duration: 1, stagger: 0.1, ease: "power4.out" }
+      );
+    }
+  }, [activeTab]);
+
   return (
-    <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black tracking-tight">Fitness Tools</h1>
-          <p className="text-muted-foreground mt-1">Smart calculators and converters to power your progress.</p>
+    <div ref={containerRef} className="max-w-7xl mx-auto space-y-12 pb-32 px-4 sm:px-6 lg:px-8 bg-slate-50/30 dark:bg-transparent min-h-screen">
+      {/* Premium Header */}
+      <div className="relative overflow-hidden rounded-[3rem] bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#334155] p-10 md:p-16 text-white shadow-2xl border border-white/10 group tool-animate">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-sky-500/10 rounded-full blur-[100px] -mr-48 -mt-48 group-hover:bg-sky-500/20 transition-all duration-1000" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-[80px] -ml-32 -mb-32" />
+        
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
+          <div className="space-y-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-sky-500/20 rounded-full text-[10px] font-black uppercase tracking-widest text-sky-400 border border-sky-500/20">
+              <Sparkles className="w-3 h-3" />
+              Advanced Diagnostic Suite
+            </div>
+            <h1 className="text-4xl md:text-6xl font-black tracking-tighter">
+              Fitness <span className="bg-gradient-to-r from-sky-400 to-indigo-400 bg-clip-text text-transparent">Tools</span>.
+            </h1>
+            <p className="text-slate-700 dark:text-slate-300 font-medium max-w-xl text-sm md:text-base leading-relaxed">
+              Precision-engineered calculators to quantify your physiological metrics and optimize your transformation strategy.
+            </p>
+          </div>
+          
+          <div className="flex flex-wrap justify-center gap-2 bg-black/40 backdrop-blur-xl p-1.5 rounded-2xl border border-white/10 shadow-inner self-start md:self-center">
+            {(["biometrics", "energy", "labs"] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={cn(
+                  "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300",
+                  activeTab === tab
+                    ? "bg-white text-slate-900 shadow-xl scale-105"
+                    : "text-slate-400 hover:text-white hover:bg-white/5"
+                )}
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-8">
-        <div className="glass-card rounded-3xl overflow-hidden border-none shadow-2xl">
-          <CalorieCalculator />
-        </div>
-        <div className="glass-card rounded-3xl overflow-hidden border-none shadow-2xl">
-          <BodyFatCalculator />
-        </div>
+      <div className="grid gap-12">
+        {activeTab === "biometrics" && (
+          <div className="grid gap-12 lg:grid-cols-2 tool-animate">
+            <div className="group">
+              <BodyFatCalculator />
+            </div>
+            <div className="group">
+              <BMICalculator />
+            </div>
+          </div>
+        )}
+
+        {activeTab === "energy" && (
+          <div className="grid lg:grid-cols-2 gap-12 tool-animate">
+            <CalorieCalculator />
+            <TdeeCalculator />
+          </div>
+        )}
+
+        {activeTab === "labs" && (
+          <div className="space-y-12 tool-animate">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              <ProteinCalculator />
+              <FatIntakeCalculator />
+              <CarbohydrateCalculator />
+            </div>
+            <div className="grid gap-8 lg:grid-cols-2">
+              <MacroCalculator />
+              <div className="glass-card rounded-[2.5rem] p-6 md:p-10 border border-white/10 bg-gradient-to-br from-sky-500/5 to-transparent flex flex-col justify-between">
+                <div className="space-y-6">
+                  <div className="w-14 h-14 rounded-2xl bg-sky-500/10 text-sky-600 flex items-center justify-center">
+                    <Info className="w-8 h-8" />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-2xl font-black">About Lab Calculations</h3>
+                    <p className="text-slate-700 dark:text-slate-300 text-sm font-medium leading-relaxed">
+                      Our algorithms are based on the latest peer-reviewed nutrition science, adjusting for thermal effect of food (TEF) and individual activity coefficients.
+                    </p>
+                  </div>
+                </div>
+                <div className="pt-8">
+                  <button className="text-sky-500 font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:gap-3 transition-all">
+                    Read Science Docs <ChevronDown className="w-3 h-3 -rotate-90" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      <div className="pt-12 border-t border-border/50">
-        <div className="mb-10">
-          <h2 className="text-3xl font-black tracking-tight">Nutritional Labs</h2>
-          <p className="text-muted-foreground mt-1 text-sm">Advanced analysis of your macronutrient and energy requirements.</p>
+      {/* Trust & Methodology Footer */}
+      <div className="pt-12 border-t border-slate-200 dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-8">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+            <Shield className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Data Integrity</p>
+            <p className="text-xs font-bold text-slate-900 dark:text-white">Calculations validated by CSCS professionals.</p>
+          </div>
         </div>
         
-        <div className="grid lg:grid-cols-2 gap-8">
-          <ProteinCalculator />
-          <FatIntakeCalculator />
-          <CarbohydrateCalculator />
-          <TdeeCalculator />
-          <MacroCalculator />
+        <div className="flex gap-6">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-sky-500" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Scientific Basis</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-indigo-500" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Real-time Updates</span>
+          </div>
         </div>
       </div>
     </div>
@@ -355,295 +452,207 @@ function BodyFatCalculator() {
 
   // Gauge component
   const BodyFatGauge = ({ value }: { value: number }) => {
-    let color = "text-emerald-500";
-    let bgGradient = "from-green-500 to-emerald-500";
-    if (value > 25) {
-      color = "text-red-500";
-      bgGradient = "from-red-500 to-orange-500";
-    } else if (value > 18) {
-      color = "text-amber-500";
-      bgGradient = "from-amber-500 to-orange-500";
-    }
-    const rotation = -90 + (value / 45) * 180; // 0–45% maps to -90 to 90 deg
+    const rotation = -90 + (value / 45) * 180;
     return (
-      <div className="relative w-36 h-36 mx-auto">
+      <div className="relative w-48 h-48">
         <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-          <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#e2e8f0" strokeWidth="8" strokeLinecap="round" className="dark:stroke-slate-700" />
-          <path
-            d="M 10 50 A 40 40 0 0 1 90 50"
+          <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" strokeWidth="6" className="text-white/5" />
+          <circle
+            cx="50" cy="50" r="40"
             fill="none"
-            stroke={`url(#fatGradient)`} strokeWidth="8" strokeLinecap="round"
-            strokeDasharray={`${(rotation + 90) / 180 * Math.PI * 40} 500`}
-            className="transition-all duration-500"
+            stroke="url(#fatGradientPremium)" strokeWidth="8" strokeLinecap="round"
+            strokeDasharray={`${(value / 45) * 251} 251`}
+            className="transition-all duration-1000 ease-out"
           />
           <defs>
-            <linearGradient id="fatGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#10b981" />
-              <stop offset="50%" stopColor="#f59e0b" />
-              <stop offset="100%" stopColor="#ef4444" />
+            <linearGradient id="fatGradientPremium" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="hsl(var(--brand-1))" />
+              <stop offset="100%" stopColor="hsl(var(--brand-2))" />
             </linearGradient>
           </defs>
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-2xl font-black">{value}%</span>
-          <span className="text-[10px] text-slate-500">Body Fat</span>
+          <span className="text-4xl font-black tracking-tighter">{value}%</span>
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mt-1">Bio-Fat</span>
+        </div>
+      </div>
+    );
+  };
+
+  const ResultStatMini = ({ label, value, icon: Icon, color }: any) => {
+    const colors: any = {
+      sky: "text-[hsl(var(--brand-1))] bg-[hsl(var(--brand-1))]/10 border-[hsl(var(--brand-1))]/20",
+      emerald: "text-[hsl(var(--brand-2))] bg-[hsl(var(--brand-2))]/10 border-[hsl(var(--brand-2))]/20",
+      rose: "text-rose-400 bg-rose-500/10 border-rose-500/20",
+      amber: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+    };
+    return (
+      <div className="p-4 rounded-2xl bg-white/5 border backdrop-blur-sm space-y-3 hover:scale-105 transition-transform duration-300">
+        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center bg-current/10", colors[color])}>
+          <Icon className="w-4 h-4" />
+        </div>
+        <div>
+          <p className="text-[9px] font-black uppercase tracking-widest text-white/70 mb-0.5">{label}</p>
+          <p className="text-sm font-black text-white">{value}</p>
         </div>
       </div>
     );
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 md:py-12 space-y-8">
+    <div className="glass-card rounded-[2.5rem] border border-white/10 shadow-2xl overflow-hidden bg-white/5 backdrop-blur-xl relative group">
+      <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--brand-1))]/5 to-transparent pointer-events-none" />
+      
       {/* Header */}
-      <div className="text-center mb-6">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-sky-500/10 to-blue-500/10 text-sky-700 dark:text-sky-400 text-sm font-medium mb-4">
-          <Droplet className="w-4 h-4" />
-          Body Composition Analysis
+      <div className="p-8 md:p-10 border-b border-white/10 relative z-10">
+        <div className="flex items-center justify-between mb-4">
+          <div className="w-12 h-12 rounded-2xl bg-[hsl(var(--brand-1))]/10 text-[hsl(var(--brand-1))] flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform duration-500">
+            <Scale className="w-6 h-6" />
+          </div>
+          <div className="px-4 py-2 rounded-xl bg-[hsl(var(--brand-1))]/10 text-[hsl(var(--brand-1))] text-[9px] font-black uppercase tracking-widest border border-[hsl(var(--brand-1))]/20">
+            Metric Only
+          </div>
         </div>
-        <h2 className="text-2xl md:text-3xl font-black bg-gradient-brand bg-clip-text text-transparent">
-          Body Fat Calculator
-        </h2>
-        <p className="text-slate-500 dark:text-slate-400 mt-3 max-w-2xl mx-auto font-medium text-xs">
-          Estimate your body fat percentage using the U.S. Navy method or BMI method.
+        <h2 className="text-3xl font-black tracking-tight bg-gradient-to-r from-[hsl(var(--brand-1))] to-[hsl(var(--brand-2))] bg-clip-text text-transparent">Body Composition</h2>
+        <p className="text-slate-700 dark:text-slate-300 mt-2 text-sm font-medium leading-relaxed">
+          Advanced anthropometric analysis using the U.S. Navy clinical standard.
         </p>
       </div>
 
       {/* Main Card */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xl">
-        {/* Unit tabs */}
-        <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
-          {[
-            { value: "metric", label: "Metric Units", icon: Ruler },
-            { value: "imperial", label: "US Units", icon: Weight },
-          ].map((unit) => (
-            <button
-              key={unit.value}
-              onClick={() => setUnitSystem(unit.value as UnitSystem)}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 font-semibold text-sm transition-all ${
-                unitSystem === unit.value
-                  ? "border-b-2 border-sky-500 text-sky-600 dark:text-sky-400 bg-white dark:bg-slate-900"
-                  : "text-slate-500"
-              }`}
-            >
-              <unit.icon className="w-4 h-4" />
-              {unit.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="p-6 md:p-8">
-          <div className="grid md:grid-cols-2 gap-x-8 gap-y-6">
+        <div className="p-8 md:p-10 space-y-10 relative z-10">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             {/* Gender and Age */}
-            <div>
-              <label className="block text-xs font-black uppercase text-muted-foreground mb-2 flex items-center gap-2 tracking-widest">
-                <User className="w-4 h-4 text-sky-500" /> Gender
+            <div className="space-y-4">
+              <label className="block text-[10px] font-black uppercase text-slate-700 dark:text-slate-300 tracking-[0.2em] ml-1">
+                Identity Profile
               </label>
               <div className="flex gap-3">
-                <button
-                  onClick={() => setGender("male")}
-                  className={`flex-1 py-3 rounded-xl font-bold text-xs transition ${
-                    gender === "male"
-                      ? "bg-gradient-to-r from-sky-500 to-blue-500 text-white shadow-md"
-                      : "bg-slate-100 dark:bg-slate-800 text-slate-500"
-                  }`}
-                >
-                  Male
-                </button>
-                <button
-                  onClick={() => setGender("female")}
-                  className={`flex-1 py-3 rounded-xl font-bold text-xs transition ${
-                    gender === "female"
-                      ? "bg-gradient-to-r from-sky-500 to-blue-500 text-white shadow-md"
-                      : "bg-slate-100 dark:bg-slate-800 text-slate-500"
-                  }`}
-                >
-                  Female
-                </button>
+                {(["male", "female"] as const).map((g) => (
+                  <button
+                    key={g}
+                    onClick={() => setGender(g)}
+                    className={cn(
+                      "flex-1 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all duration-300 border",
+                      gender === g
+                        ? "bg-[hsl(var(--brand-1))] text-white border-[hsl(var(--brand-1))] shadow-xl shadow-[hsl(var(--brand-1))]/20"
+                        : "bg-transparent border-white/20 text-white/70 hover:border-[hsl(var(--brand-1))]/50 hover:text-[hsl(var(--brand-1))]"
+                    )}
+                  >
+                    {g}
+                  </button>
+                ))}
+              </div>
+              <div className="relative group/input">
+                <input
+                  type="number"
+                  value={age}
+                  onChange={(e) => setAge(Math.min(100, Math.max(15, parseInt(e.target.value) || 15)))}
+                  className="w-full px-5 py-4 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 font-bold text-sm outline-none text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-white/50 transition-all focus:ring-4 focus:ring-[hsl(var(--brand-1))]/20 focus:border-[hsl(var(--brand-1))]"
+                />
+                <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase text-slate-600 dark:text-white/70">Years Old</span>
               </div>
             </div>
-            <div>
-              <label className="block text-xs font-black uppercase text-muted-foreground mb-2 flex items-center gap-2 tracking-widest">
-                <Calendar className="w-4 h-4 text-sky-500" /> Age
-              </label>
-              <input
-                type="number"
-                value={age}
-                onChange={(e) => setAge(Math.min(100, Math.max(15, parseInt(e.target.value) || 15)))}
-                className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-border outline-none focus:ring-2 focus:ring-sky-400/20"
-              />
-            </div>
 
-            {/* Height */}
-            <div>
-              <label className="block text-xs font-black uppercase text-muted-foreground mb-2 flex items-center gap-2 tracking-widest">
-                <RulerIcon className="w-4 h-4 text-sky-500" /> Height
+            {/* Anthropometric Metrics */}
+            <div className="space-y-4">
+              <label className="block text-[10px] font-black uppercase text-slate-700 dark:text-slate-300 tracking-[0.2em] ml-1">
+                Biometric Inputs
               </label>
-              {unitSystem === "metric" ? (
+              <div className="grid grid-cols-2 gap-4">
                 <div className="relative">
                   <input
                     type="number"
                     value={heightCm}
                     onChange={(e) => setHeightCm(parseInt(e.target.value) || 0)}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-border outline-none focus:ring-2 focus:ring-sky-400/20"
+                    placeholder="Height"
+                    className="w-full px-5 py-4 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 font-bold text-sm outline-none text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-white/50 transition-all focus:ring-4 focus:ring-[hsl(var(--brand-1))]/20 focus:border-[hsl(var(--brand-1))]"
                   />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-bold">cm</span>
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-600 dark:text-white/70">CM</span>
                 </div>
-              ) : (
-                <div className="flex gap-3">
-                  <div className="flex-1 relative">
-                    <input
-                      type="number"
-                      value={heightFeet}
-                      onChange={(e) => setHeightFeet(parseInt(e.target.value) || 0)}
-                      className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-border outline-none focus:ring-2 focus:ring-sky-400/20"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">ft</span>
-                  </div>
-                  <div className="flex-1 relative">
-                    <input
-                      type="number"
-                      value={heightInches}
-                      onChange={(e) => setHeightInches(Math.min(11, parseInt(e.target.value) || 0))}
-                      className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-border outline-none focus:ring-2 focus:ring-sky-400/20"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">in</span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Weight */}
-            <div>
-              <label className="block text-xs font-black uppercase text-muted-foreground mb-2 flex items-center gap-2 tracking-widest">
-                <Scale className="w-4 h-4 text-sky-500" /> Weight
-              </label>
-              {unitSystem === "metric" ? (
                 <div className="relative">
                   <input
                     type="number"
-                    step="0.5"
                     value={weightKg}
                     onChange={(e) => setWeightKg(parseFloat(e.target.value) || 0)}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-border outline-none focus:ring-2 focus:ring-sky-400/20"
+                    placeholder="Weight"
+                    className="w-full px-5 py-4 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 font-bold text-sm outline-none text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-white/50 transition-all focus:ring-4 focus:ring-[hsl(var(--brand-1))]/20 focus:border-[hsl(var(--brand-1))]"
                   />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-bold">kg</span>
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-600 dark:text-white/70">KG</span>
                 </div>
-              ) : (
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 <div className="relative">
                   <input
                     type="number"
-                    step="1"
-                    value={weightLbs}
-                    onChange={(e) => setWeightLbs(parseInt(e.target.value) || 0)}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-border outline-none focus:ring-2 focus:ring-sky-400/20"
+                    value={neckCm}
+                    onChange={(e) => setNeckCm(parseFloat(e.target.value) || 0)}
+                    placeholder="Neck"
+                    className="w-full px-5 py-4 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 font-bold text-sm outline-none text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-white/50 transition-all focus:ring-4 focus:ring-[hsl(var(--brand-1))]/20 focus:border-[hsl(var(--brand-1))]"
                   />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-bold">lbs</span>
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-600 dark:text-white/70">CM</span>
                 </div>
-              )}
-            </div>
-
-            {/* Neck */}
-            <div>
-              <label className="block text-xs font-black uppercase text-muted-foreground mb-2 tracking-widest">Neck circumference</label>
-              {unitSystem === "metric" ? (
                 <div className="relative">
-                  <input type="number" step="0.1" value={neckCm} onChange={(e) => setNeckCm(parseFloat(e.target.value) || 0)} className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-border outline-none focus:ring-2 focus:ring-sky-400/20" />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-bold">cm</span>
+                  <input
+                    type="number"
+                    value={waistCm}
+                    onChange={(e) => setWaistCm(parseFloat(e.target.value) || 0)}
+                    placeholder="Waist"
+                    className="w-full px-5 py-4 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 font-bold text-sm outline-none text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-white/50 transition-all focus:ring-4 focus:ring-[hsl(var(--brand-1))]/20 focus:border-[hsl(var(--brand-1))]"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-600 dark:text-white/70">CM</span>
                 </div>
-              ) : (
-                <div className="relative">
-                  <input type="number" step="0.1" value={neckInches} onChange={(e) => setNeckInches(parseFloat(e.target.value) || 0)} className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-border outline-none focus:ring-2 focus:ring-sky-400/20" />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-bold">in</span>
-                </div>
-              )}
-            </div>
-
-            {/* Waist */}
-            <div>
-              <label className="block text-xs font-black uppercase text-muted-foreground mb-2 tracking-widest">Waist circumference</label>
-              {unitSystem === "metric" ? (
-                <div className="relative">
-                  <input type="number" step="0.1" value={waistCm} onChange={(e) => setWaistCm(parseFloat(e.target.value) || 0)} className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-border outline-none focus:ring-2 focus:ring-sky-400/20" />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-bold">cm</span>
-                </div>
-              ) : (
-                <div className="relative">
-                  <input type="number" step="0.1" value={waistInches} onChange={(e) => setWaistInches(parseFloat(e.target.value) || 0)} className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-border outline-none focus:ring-2 focus:ring-sky-400/20" />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-bold">in</span>
-                </div>
-              )}
-            </div>
-
-            {/* Hip (only for women) */}
-            {gender === "female" && (
-              <div>
-                <label className="block text-xs font-black uppercase text-muted-foreground mb-2 tracking-widest">Hip circumference</label>
-                {unitSystem === "metric" ? (
-                  <div className="relative">
-                    <input type="number" step="0.1" value={hipCm} onChange={(e) => setHipCm(parseFloat(e.target.value) || 0)} className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-border outline-none focus:ring-2 focus:ring-sky-400/20" />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-bold">cm</span>
-                  </div>
-                ) : (
-                  <div className="relative">
-                    <input type="number" step="0.1" value={hipInches} onChange={(e) => setHipInches(parseFloat(e.target.value) || 0)} className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-border outline-none focus:ring-2 focus:ring-sky-400/20" />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-bold">in</span>
-                  </div>
-                )}
               </div>
-            )}
+            </div>
           </div>
 
           {/* Action Row */}
-          <div className="flex flex-wrap justify-between items-center gap-3 mt-8">
-            <div className="flex gap-2">
-              <button onClick={resetForm} className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold flex items-center gap-2 hover:bg-slate-200 transition">
+          <div className="flex flex-col gap-4 pt-6 border-t border-white/10 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex gap-3">
+              <button onClick={resetForm} className="px-5 py-2.5 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/20 transition-all flex items-center gap-2">
                 <RefreshCw className="w-3 h-3" /> Reset
               </button>
-              <button onClick={() => setShowHistory(!showHistory)} className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold flex items-center gap-2 hover:bg-slate-200 transition">
+              <button onClick={() => setShowHistory(!showHistory)} className="px-5 py-2.5 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/20 transition-all flex items-center gap-2">
                 <History className="w-3 h-3" /> History
               </button>
             </div>
             {bfpNavy !== null && (
-              <button onClick={saveCurrentResult} className="px-5 py-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-500 text-white font-black text-xs flex items-center gap-2 shadow-lg hover:scale-105 transition active:scale-95">
-                <Save className="w-3 h-3" /> Save Result
+              <button onClick={saveCurrentResult} className="px-8 py-3 rounded-2xl bg-gradient-to-r from-[hsl(var(--brand-1))] to-[hsl(var(--brand-2))] text-white font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-[hsl(var(--brand-1))]/20 hover:scale-105 active:scale-95 transition-all relative overflow-hidden group">
+                <span className="relative z-10 flex items-center gap-2">
+                  <Save className="w-3 h-3" /> Save Analysis
+                </span>
+                <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               </button>
             )}
           </div>
 
-          {/* Results Section */}
+          {/* Results Display */}
           {bfpNavy !== null && (
-            <div className="mt-8 rounded-2xl bg-gradient-to-br from-sky-50 to-blue-50 dark:from-sky-950/30 dark:to-blue-950/30 p-6 border border-sky-200 dark:border-sky-800 animate-in fade-in zoom-in duration-500">
-              <div className="grid md:grid-cols-2 gap-8">
-                <div className="flex flex-col items-center">
+            <div className="p-8 rounded-[2.5rem] bg-gradient-to-br from-slate-900 to-slate-800 text-white border border-white/10 shadow-2xl animate-in fade-in zoom-in duration-700 relative overflow-hidden group/results">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-[hsl(var(--brand-1))]/10 rounded-full blur-[80px] -mr-32 -mt-32" />
+              <div className="relative z-10 grid gap-8 md:grid-cols-2 items-center">
+                <div className="flex flex-col items-center space-y-4">
                   <BodyFatGauge value={bfpNavy} />
-                  <div className="mt-3 text-center">
-                    <p className="text-[10px] font-black uppercase text-sky-600 tracking-widest">Navy Method</p>
-                    <p className="text-4xl font-black">{bfpNavy}%</p>
-                    <p className="text-sm font-bold mt-1 text-slate-600 dark:text-slate-400">{category}</p>
+                  <div className="text-center">
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-sky-400 mb-1">Status</p>
+                    <p className="text-xl font-black">{category}</p>
                   </div>
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-6">
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="p-3 rounded-xl bg-white/50 dark:bg-black/20">
-                      <p className="text-[9px] font-black uppercase text-muted-foreground mb-1">Fat Mass</p>
-                      <p className="text-lg font-black">{fatMass} <span className="text-[10px]">kg</span></p>
-                    </div>
-                    <div className="p-3 rounded-xl bg-white/50 dark:bg-black/20">
-                      <p className="text-[9px] font-black uppercase text-muted-foreground mb-1">Lean Mass</p>
-                      <p className="text-lg font-black">{leanMass} <span className="text-[10px]">kg</span></p>
-                    </div>
-                    <div className="p-3 rounded-xl bg-white/50 dark:bg-black/20">
-                      <p className="text-[9px] font-black uppercase text-muted-foreground mb-1">Ideal %</p>
-                      <p className="text-lg font-black">{idealBodyFat}%</p>
-                    </div>
-                    <div className="p-3 rounded-xl bg-white/50 dark:bg-black/20 border border-rose-200 dark:border-rose-900/50">
-                      <p className="text-[9px] font-black uppercase text-rose-500 mb-1">Excess Fat</p>
-                      <p className="text-lg font-black text-rose-600">{fatToLose} <span className="text-[10px]">kg</span></p>
-                    </div>
+                    <ResultStatMini label="Fat Mass" value={`${fatMass}kg`} icon={Flame} color="rose" />
+                    <ResultStatMini label="Lean Mass" value={`${leanMass}kg`} icon={Dumbbell} color="emerald" />
+                    <ResultStatMini label="Ideal %" value={`${idealBodyFat}%`} icon={Target} color="sky" />
+                    <ResultStatMini label="Excess Fat" value={`${fatToLose}kg`} icon={AlertTriangle} color="amber" />
                   </div>
-                  <div className="p-3 rounded-xl bg-sky-500/10 border border-sky-500/20">
-                     <p className="text-[9px] font-black uppercase text-sky-600 mb-1">BMI Estimation</p>
-                     <p className="text-sm font-bold">{bfpBMI}% (Alternative Method)</p>
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-400 flex items-center justify-center">
+                        <Activity className="w-4 h-4" />
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">BMI Metric</span>
+                    </div>
+                    <span className="text-sm font-black text-sky-400">{bfpBMI}%</span>
                   </div>
                 </div>
               </div>
@@ -652,26 +661,28 @@ function BodyFatCalculator() {
 
           {/* History panel */}
           {showHistory && (
-            <div className="mt-6 p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 animate-in slide-in-from-top duration-300">
+            <div className="mt-6 p-5 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 animate-in slide-in-from-top duration-300">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-sm font-black flex items-center gap-2 uppercase tracking-widest"><History className="w-4 h-4 text-sky-500" /> Recent Analysis</h3>
+                <h3 className="text-sm font-black flex items-center gap-2 uppercase tracking-widest text-white">
+                  <History className="w-4 h-4 text-[hsl(var(--brand-1))]" /> Recent Analysis
+                </h3>
                 {savedEntries.length > 0 && (
-                  <button onClick={clearHistory} className="text-[10px] font-black uppercase text-rose-500 flex items-center gap-1 hover:underline">
+                  <button onClick={clearHistory} className="text-[10px] font-black uppercase text-rose-400 flex items-center gap-1 hover:text-rose-300 transition-colors">
                     <Trash2 className="w-3 h-3" /> Clear History
                   </button>
                 )}
               </div>
               {savedEntries.length === 0 ? (
-                <p className="text-xs text-slate-500 text-center py-6 font-medium">No saved results found.</p>
+                <p className="text-xs text-white/70 text-center py-6 font-medium">No saved results found.</p>
               ) : (
                 <div className="max-h-64 overflow-y-auto space-y-2 pr-2">
                   {savedEntries.map(entry => (
-                    <div key={entry.id} className="flex justify-between items-center p-3 rounded-xl bg-white dark:bg-slate-900 border border-border group">
+                    <div key={entry.id} className="flex justify-between items-center p-3 rounded-xl bg-white/5 border border-white/10 group">
                       <div>
-                        <p className="text-sm font-black text-sky-600">{entry.bodyFat}% – {entry.bodyFatCategory}</p>
-                        <p className="text-[10px] text-muted-foreground font-bold">{entry.date} • {entry.age}y {entry.gender}</p>
+                        <p className="text-sm font-black text-[hsl(var(--brand-1))]">{entry.bodyFat}% – {entry.bodyFatCategory}</p>
+                        <p className="text-[10px] text-white/70 font-bold">{entry.date} • {entry.age}y {entry.gender}</p>
                       </div>
-                      <button onClick={() => deleteEntry(entry.id)} className="text-slate-300 hover:text-rose-500 transition group-hover:scale-110">
+                      <button onClick={() => deleteEntry(entry.id)} className="text-white/50 hover:text-rose-400 transition-colors group-hover:scale-110">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
@@ -683,57 +694,486 @@ function BodyFatCalculator() {
 
           {/* Expandable info */}
           <div className="mt-6 space-y-2">
-            <button onClick={() => toggleSection("categories")} className="flex justify-between items-center w-full p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl hover:bg-slate-100 transition">
-              <span className="font-bold text-xs uppercase tracking-widest flex items-center gap-2"><Target className="w-4 h-4 text-sky-500" /> Body Fat Categories (ACE)</span>
+            <button onClick={() => toggleSection("categories")} className="flex justify-between items-center w-full p-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl hover:bg-white/20 transition-all text-white">
+              <span className="font-bold text-xs uppercase tracking-widest flex items-center gap-2"><Target className="w-4 h-4 text-[hsl(var(--brand-1))]" /> Body Fat Categories (ACE)</span>
               {expandedSections.categories ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </button>
             {expandedSections.categories && (
-              <div className="overflow-x-auto p-4 border border-border rounded-xl bg-white dark:bg-slate-900 animate-in fade-in duration-300">
-                <table className="w-full text-[11px] font-bold">
-                  <thead><tr className="text-muted-foreground uppercase border-b border-border"><th className="pb-2 text-left">Description</th><th className="pb-2 text-right">Women</th><th className="pb-2 text-right">Men</th></tr></thead>
-                  <tbody className="divide-y divide-border">
-                    <tr className="text-slate-600"><td className="py-2">Essential fat</td><td className="text-right">10–13%</td><td className="text-right">2–5%</td></tr>
-                    <tr className="text-sky-600"><td className="py-2">Athletes</td><td className="text-right">14–20%</td><td className="text-right">6–13%</td></tr>
-                    <tr className="text-emerald-600"><td className="py-2">Fitness</td><td className="text-right">21–24%</td><td className="text-right">14–17%</td></tr>
-                    <tr className="text-amber-600"><td className="py-2">Average</td><td className="text-right">25–31%</td><td className="text-right">18–24%</td></tr>
-                    <tr className="text-rose-600"><td className="py-2">Obese</td><td className="text-right">32%+</td><td className="text-right">25%+</td></tr>
+              <div className="overflow-x-auto p-4 border border-white/20 rounded-xl bg-white/5 backdrop-blur-sm animate-in fade-in duration-300">
+                <table className="w-full text-[11px] font-bold text-white">
+                  <thead><tr className="text-white/70 uppercase border-b border-white/20"><th className="pb-2 text-left">Description</th><th className="pb-2 text-right">Women</th><th className="pb-2 text-right">Men</th></tr></thead>
+                  <tbody className="divide-y divide-white/20">
+                    <tr className="text-white"><td className="py-2">Essential fat</td><td className="text-right">10–13%</td><td className="text-right">2–5%</td></tr>
+                    <tr className="text-[hsl(var(--brand-1))]"><td className="py-2">Athletes</td><td className="text-right">14–20%</td><td className="text-right">6–13%</td></tr>
+                    <tr className="text-[hsl(var(--brand-2))]"><td className="py-2">Fitness</td><td className="text-right">21–24%</td><td className="text-right">14–17%</td></tr>
+                    <tr className="text-amber-400"><td className="py-2">Average</td><td className="text-right">25–31%</td><td className="text-right">18–24%</td></tr>
+                    <tr className="text-rose-400"><td className="py-2">Obese</td><td className="text-right">32%+</td><td className="text-right">25%+</td></tr>
                   </tbody>
                 </table>
               </div>
             )}
 
-            <button onClick={() => toggleSection("methodology")} className="flex justify-between items-center w-full p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl hover:bg-slate-100 transition">
-              <span className="font-bold text-xs uppercase tracking-widest flex items-center gap-2"><Calculator className="w-4 h-4 text-sky-500" /> Scientific Methodology</span>
+            <button onClick={() => toggleSection("methodology")} className="flex justify-between items-center w-full p-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl hover:bg-white/20 transition-all text-white">
+              <span className="font-bold text-xs uppercase tracking-widest flex items-center gap-2"><Calculator className="w-4 h-4 text-[hsl(var(--brand-1))]" /> Scientific Methodology</span>
               {expandedSections.methodology ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </button>
             {expandedSections.methodology && (
-              <div className="text-[11px] text-slate-500 dark:text-slate-400 p-4 border-l-4 border-sky-400 bg-sky-50/30 dark:bg-sky-950/20 rounded-r-xl animate-in fade-in duration-300 leading-relaxed font-medium">
+              <div className="text-[11px] text-white/80 p-4 border-l-4 border-[hsl(var(--brand-1))] bg-[hsl(var(--brand-1))]/5 rounded-r-xl animate-in fade-in duration-300 leading-relaxed font-medium">
                 <p><strong>U.S. Navy Method:</strong> Estimates body density based on waist, neck, and (for women) hip circumference along with height. Calculated via log-based regression equations used by clinical and military institutions.</p>
                 <p className="mt-2"><strong>BMI Method:</strong> A statistical estimate based on height-to-weight ratio and age. Less accurate for athletes with high muscle mass but provides a useful baseline comparison.</p>
               </div>
             )}
 
-            <button onClick={() => toggleSection("risks")} className="flex justify-between items-center w-full p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl hover:bg-slate-100 transition">
+            <button onClick={() => toggleSection("risks")} className="flex justify-between items-center w-full p-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl hover:bg-white/20 transition-all text-white">
               <span className="font-bold text-xs uppercase tracking-widest flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-rose-500" /> Health Risk Indicators</span>
               {expandedSections.risks ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </button>
             {expandedSections.risks && (
-              <div className="text-[11px] text-slate-500 dark:text-slate-400 p-4 border-l-4 border-rose-400 bg-rose-50/30 dark:bg-rose-950/20 rounded-r-xl animate-in fade-in duration-300 leading-relaxed font-medium">
+              <div className="text-[11px] text-white/80 p-4 border-l-4 border-rose-400 bg-rose-500/5 rounded-r-xl animate-in fade-in duration-300 leading-relaxed font-medium">
                 <p>Elevated body fat levels, particularly visceral fat, are significantly linked to chronic conditions including metabolic syndrome, cardiovascular disease, hypertension, and insulin resistance. Monitoring body composition is a critical step in long-term health optimization.</p>
               </div>
             )}
           </div>
         </div>
+
+        {/* Footer Disclaimer */}
+        <div className="text-center py-6 border-t border-white/10 flex flex-col items-center gap-3 relative z-10">
+          <div className="flex items-center gap-2 text-slate-400">
+             <Shield className="w-4 h-4" />
+             <p className="text-[10px] font-black uppercase tracking-[0.2em]">Clinical Disclaimer</p>
+          </div>
+          <p className="text-xs text-muted-foreground max-w-lg leading-relaxed font-medium px-8">
+            Calculations are statistical estimations and should not be used as a substitute for medical grade body scans (DXA, BodPod) or professional healthcare consultation.
+          </p>
+        </div>
+      </div>
+    );
+}
+
+function BMICalculator() {
+  const [heightCm, setHeightCm] = useState<number>(175);
+  const [weightKg, setWeightKg] = useState<number>(70);
+  const [age, setAge] = useState<number>(25);
+  const [gender, setGender] = useState<Gender>("male");
+  const [bmi, setBmi] = useState<number | null>(null);
+  const [category, setCategory] = useState<string>("");
+  const [idealWeightRange, setIdealWeightRange] = useState<{min: number, max: number} | null>(null);
+  const [healthRisks, setHealthRisks] = useState<string[]>([]);
+  const [savedEntries, setSavedEntries] = useState<any[]>([]);
+  const [showHistory, setShowHistory] = useState<boolean>(false);
+
+  // BMI Categories with health risks
+  const bmiCategories = {
+    underweight: { range: [0, 18.5], risks: ["Nutrient deficiencies", "Weakened immune system", "Osteoporosis risk"] },
+    normal: { range: [18.5, 24.9], risks: ["Low health risks", "Optimal metabolic function"] },
+    overweight: { range: [25, 29.9], risks: ["Increased cardiovascular risk", "Type 2 diabetes risk", "Joint stress"] },
+    obese: { range: [30, 34.9], risks: ["High cardiovascular risk", "Type 2 diabetes", "Sleep apnea", "Joint problems"] },
+    severelyObese: { range: [35, 39.9], risks: ["Very high health risks", "Severe cardiovascular disease", "Type 2 diabetes", "Cancer risk"] },
+    morbidlyObese: { range: [40, Infinity], risks: ["Extremely high mortality risk", "Severe comorbidities", "Requires medical intervention"] }
+  };
+
+  // Calculate BMI and related metrics
+  useEffect(() => {
+    if (heightCm <= 0 || weightKg <= 0) {
+      setBmi(null);
+      setCategory("");
+      setIdealWeightRange(null);
+      setHealthRisks([]);
+      return;
+    }
+
+    const calculatedBMI = weightKg / ((heightCm / 100) ** 2);
+    const bmiValue = parseFloat(calculatedBMI.toFixed(1));
+    setBmi(bmiValue);
+
+    // Determine category
+    let cat = "";
+    let risks: string[] = [];
+    
+    if (bmiValue < 18.5) {
+      cat = "Underweight";
+      risks = bmiCategories.underweight.risks;
+    } else if (bmiValue < 25) {
+      cat = "Normal Weight";
+      risks = bmiCategories.normal.risks;
+    } else if (bmiValue < 30) {
+      cat = "Overweight";
+      risks = bmiCategories.overweight.risks;
+    } else if (bmiValue < 35) {
+      cat = "Obese Class I";
+      risks = bmiCategories.obese.risks;
+    } else if (bmiValue < 40) {
+      cat = "Obese Class II";
+      risks = bmiCategories.severelyObese.risks;
+    } else {
+      cat = "Obese Class III";
+      risks = bmiCategories.morbidlyObese.risks;
+    }
+    
+    setCategory(cat);
+    setHealthRisks(risks);
+
+    // Calculate ideal weight range (BMI 18.5-24.9)
+    const heightM = heightCm / 100;
+    const minWeight = 18.5 * (heightM ** 2);
+    const maxWeight = 24.9 * (heightM ** 2);
+    setIdealWeightRange({
+      min: parseFloat(minWeight.toFixed(1)),
+      max: parseFloat(maxWeight.toFixed(1))
+    });
+  }, [heightCm, weightKg]);
+
+  // Save current result
+  const saveCurrentResult = () => {
+    if (bmi === null) return;
+    const newEntry = {
+      id: Date.now().toString(),
+      date: new Date().toLocaleString(),
+      bmi: bmi,
+      category: category,
+      heightCm: heightCm,
+      weightKg: weightKg,
+      age: age,
+      gender: gender,
+      idealWeightRange: idealWeightRange
+    };
+    setSavedEntries((prev) => [newEntry, ...prev].slice(0, 10));
+  };
+
+  // Delete entry
+  const deleteEntry = (id: string) => {
+    setSavedEntries((prev) => prev.filter((e) => e.id !== id));
+  };
+
+  // Clear history
+  const clearHistory = () => {
+    setSavedEntries([]);
+  };
+
+  // Reset form
+  const resetForm = () => {
+    setHeightCm(175);
+    setWeightKg(70);
+    setAge(25);
+    setGender("male");
+  };
+
+  // BMI Gauge component
+  const BMIGauge = ({ value }: { value: number }) => {
+    const getBMIPosition = (bmi: number) => {
+      if (bmi < 18.5) return 0;
+      if (bmi < 25) return ((bmi - 18.5) / (25 - 18.5)) * 25;
+      if (bmi < 30) return 25 + ((bmi - 25) / (30 - 25)) * 25;
+      if (bmi < 35) return 50 + ((bmi - 30) / (35 - 30)) * 16.67;
+      if (bmi < 40) return 66.67 + ((bmi - 35) / (40 - 35)) * 16.67;
+      return 83.34 + Math.min(((bmi - 40) / 10) * 16.66, 16.66);
+    };
+
+    const position = getBMIPosition(value);
+    const getColor = (bmi: number) => {
+      if (bmi < 18.5) return "#3b82f6"; // blue
+      if (bmi < 25) return "#10b981"; // green
+      if (bmi < 30) return "#f59e0b"; // amber
+      if (bmi < 35) return "#ef4444"; // red
+      return "#dc2626"; // dark red
+    };
+
+    return (
+      <div className="relative w-full max-w-sm mx-auto">
+        {/* BMI Scale */}
+        <div className="relative h-8 bg-gradient-to-r from-blue-500 via-green-500 via-yellow-500 via-orange-500 to-red-600 rounded-full overflow-hidden shadow-inner">
+          {/* Category markers */}
+          <div className="absolute top-0 left-0 h-full w-1/4 border-r border-white/30" />
+          <div className="absolute top-0 left-1/4 h-full w-1/4 border-r border-white/30" />
+          <div className="absolute top-0 left-1/2 h-full w-1/6 border-r border-white/30" />
+          <div className="absolute top-0 left-2/3 h-full w-1/6 border-r border-white/30" />
+          
+          {/* BMI indicator */}
+          <div 
+            className="absolute top-0 h-full w-1 bg-white shadow-lg transition-all duration-1000 ease-out rounded-full"
+            style={{ left: `${position}%` }}
+          />
+        </div>
+        
+        {/* Scale labels */}
+        <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-slate-400 mt-2 px-1">
+          <span>Under</span>
+          <span>Normal</span>
+          <span>Over</span>
+          <span>Obese I</span>
+          <span>Obese II</span>
+          <span>Obese III</span>
+        </div>
+        
+        {/* BMI Value Display */}
+        <div className="text-center mt-6">
+          <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 shadow-xl">
+            <div className="text-center">
+              <div className="text-2xl font-black" style={{ color: getColor(value) }}>{value}</div>
+              <div className="text-[8px] font-black uppercase tracking-[0.3em] text-slate-400">BMI</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Result stat component
+  const BMIResultStat = ({ label, value, icon: Icon, color }: any) => {
+    const colors: any = {
+      sky: "text-[hsl(var(--brand-1))] bg-[hsl(var(--brand-1))]/10 border-[hsl(var(--brand-1))]/20",
+      emerald: "text-[hsl(var(--brand-2))] bg-[hsl(var(--brand-2))]/10 border-[hsl(var(--brand-2))]/20",
+      amber: "text-[hsl(var(--brand-3))] bg-[hsl(var(--brand-3))]/10 border-[hsl(var(--brand-3))]/20",
+      rose: "text-rose-400 bg-rose-500/10 border-rose-500/20",
+    };
+    return (
+      <div className={cn("p-4 rounded-2xl bg-white/5 border backdrop-blur-sm space-y-2 hover:scale-105 transition-transform duration-300", colors[color])}>
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-current/10">
+          <Icon className="w-4 h-4" />
+        </div>
+        <div>
+          <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">{label}</p>
+          <p className="text-sm font-black">{value}</p>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="glass-card rounded-[2.5rem] border border-white/10 shadow-2xl overflow-hidden bg-white/5 backdrop-blur-xl relative group">
+      <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--brand-1))]/5 to-transparent pointer-events-none" />
+      
+      {/* Header */}
+      <div className="p-8 md:p-10 border-b border-white/10 relative z-10">
+        <div className="flex items-center justify-between mb-4">
+          <div className="w-12 h-12 rounded-2xl bg-[hsl(var(--brand-1))]/10 text-[hsl(var(--brand-1))] flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform duration-500">
+            <Scale className="w-6 h-6" />
+          </div>
+          <div className="px-4 py-2 rounded-xl bg-[hsl(var(--brand-1))]/10 text-[hsl(var(--brand-1))] text-[9px] font-black uppercase tracking-widest border border-[hsl(var(--brand-1))]/20">
+            Metric Only
+          </div>
+        </div>
+        <h2 className="text-3xl font-black tracking-tight bg-gradient-to-r from-[hsl(var(--brand-1))] to-[hsl(var(--brand-2))] bg-clip-text text-transparent">BMI Calculator</h2>
+        <p className="text-slate-700 dark:text-slate-300 mt-2 text-sm font-medium leading-relaxed">
+          Advanced body mass index analysis with health risk assessment and ideal weight ranges.
+        </p>
+      </div>
+
+      {/* Main Content */}
+      <div className="p-8 md:p-10 space-y-10 relative z-10">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          {/* Personal Info */}
+          <div className="space-y-4">
+            <label className="block text-[10px] font-black uppercase text-slate-700 dark:text-slate-300 tracking-[0.2em] ml-1">
+              Personal Profile
+            </label>
+            <div className="flex gap-3">
+              {(["male", "female"] as const).map((g) => (
+                <button
+                  key={g}
+                  onClick={() => setGender(g)}
+                  className={cn(
+                    "flex-1 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all duration-300 border",
+                    gender === g
+                      ? "bg-[hsl(var(--brand-1))] text-white border-[hsl(var(--brand-1))] shadow-xl shadow-[hsl(var(--brand-1))]/20"
+                      : "bg-transparent border-white/20 text-slate-400 hover:border-[hsl(var(--brand-1))]/50 hover:text-[hsl(var(--brand-1))]"
+                  )}
+                >
+                  {g}
+                </button>
+              ))}
+            </div>
+            <div className="relative group/input">
+              <input
+                type="number"
+                value={age}
+                onChange={(e) => setAge(Math.min(100, Math.max(15, parseInt(e.target.value) || 15)))}
+                className="w-full px-5 py-4 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 font-bold text-sm outline-none text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-white/50 transition-all focus:ring-4 focus:ring-[hsl(var(--brand-1))]/20 focus:border-[hsl(var(--brand-1))]"
+              />
+              <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase text-slate-600 dark:text-white/70">Years</span>
+            </div>
+          </div>
+
+          {/* Measurements */}
+          <div className="space-y-4">
+            <label className="block text-[10px] font-black uppercase text-slate-700 dark:text-slate-300 tracking-[0.2em] ml-1">
+              Body Measurements
+            </label>
+            <div className="space-y-4">
+              <div className="relative group/input">
+                <input
+                  type="number"
+                  value={heightCm}
+                  onChange={(e) => setHeightCm(Math.min(250, Math.max(100, parseInt(e.target.value) || 100)))}
+                  placeholder="Height"
+                  className="w-full px-5 py-4 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 font-bold text-sm outline-none text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-white/50 transition-all focus:ring-4 focus:ring-[hsl(var(--brand-1))]/20 focus:border-[hsl(var(--brand-1))]"
+                />
+                <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase text-slate-600 dark:text-white/70">CM</span>
+              </div>
+              <div className="relative group/input">
+                <input
+                  type="number"
+                  value={weightKg}
+                  onChange={(e) => setWeightKg(Math.min(300, Math.max(30, parseFloat(e.target.value) || 30)))}
+                  placeholder="Weight"
+                  className="w-full px-5 py-4 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 font-bold text-sm outline-none text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-white/50 transition-all focus:ring-4 focus:ring-[hsl(var(--brand-1))]/20 focus:border-[hsl(var(--brand-1))]"
+                />
+                <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase text-slate-600 dark:text-white/70">KG</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Action Row */}
+        <div className="flex flex-col gap-4 pt-6 border-t border-white/10 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap gap-3">
+            <button onClick={resetForm} className="px-5 py-2.5 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/20 transition-all">
+              <RefreshCw className="w-3 h-3 inline mr-2" /> Reset
+            </button>
+            <button onClick={() => setShowHistory(!showHistory)} className="px-5 py-2.5 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/20 transition-all">
+              <History className="w-3 h-3 inline mr-2" /> History
+            </button>
+          </div>
+          {bmi !== null && (
+            <button onClick={saveCurrentResult} className="px-8 py-3 rounded-2xl bg-gradient-to-r from-[hsl(var(--brand-1))] to-[hsl(var(--brand-2))] text-white font-black text-[10px] uppercase tracking-widest shadow-2xl shadow-[hsl(var(--brand-1))]/20 hover:scale-105 active:scale-95 transition-all relative overflow-hidden group">
+              <span className="relative z-10 flex items-center gap-2">
+                <Save className="w-3 h-3" /> Save Analysis
+              </span>
+              <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            </button>
+          )}
+        </div>
+
+        {/* Results Display */}
+        {bmi !== null && (
+          <div className="p-8 rounded-[2.5rem] bg-gradient-to-br from-slate-900 to-slate-800 text-white border border-white/10 shadow-2xl animate-in fade-in zoom-in duration-700 relative overflow-hidden group/results">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-[hsl(var(--brand-1))]/10 rounded-full blur-[80px] -mr-32 -mt-32" />
+            <div className="relative z-10 space-y-8">
+              {/* BMI Gauge */}
+              <div className="flex justify-center">
+                <BMIGauge value={bmi} />
+              </div>
+
+              {/* Category and Stats */}
+              <div className="grid md:grid-cols-2 gap-8">
+                <div className="text-center space-y-4">
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[hsl(var(--brand-1))]/10 border border-[hsl(var(--brand-1))]/20">
+                    <Target className="w-4 h-4 text-[hsl(var(--brand-1))]" />
+                    <span className="text-sm font-black text-[hsl(var(--brand-1))]">{category}</span>
+                  </div>
+                  {idealWeightRange && (
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Ideal Weight Range</p>
+                      <p className="text-lg font-black text-[hsl(var(--brand-2))]">{idealWeightRange.min} - {idealWeightRange.max} kg</p>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <BMIResultStat label="Height" value={`${heightCm} cm`} icon={Ruler} color="sky" />
+                  <BMIResultStat label="Weight" value={`${weightKg} kg`} icon={Weight} color="emerald" />
+                  <BMIResultStat label="Age" value={`${age} yrs`} icon={User} color="amber" />
+                  <BMIResultStat label="Gender" value={gender} icon={Heart} color="rose" />
+                </div>
+              </div>
+
+              {/* Health Risks */}
+              {healthRisks.length > 0 && (
+                <div className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                  <div className="flex items-center gap-3 mb-4">
+                    <AlertTriangle className="w-5 h-5 text-amber-400" />
+                    <h4 className="text-sm font-black uppercase tracking-widest text-amber-400">Health Risk Indicators</h4>
+                  </div>
+                  <div className="grid gap-2">
+                    {healthRisks.map((risk, index) => (
+                      <div key={index} className="flex items-center gap-3 text-sm text-slate-300">
+                        <div className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
+                        <span className="font-medium">{risk}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* History Panel */}
+        {showHistory && (
+          <div className="mt-6 p-5 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 animate-in slide-in-from-top duration-300">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-sm font-black flex items-center gap-2 uppercase tracking-widest text-white">
+                <History className="w-4 h-4 text-[hsl(var(--brand-1))]" /> Recent Analysis
+              </h3>
+              {savedEntries.length > 0 && (
+                <button onClick={clearHistory} className="text-[10px] font-black uppercase text-rose-400 flex items-center gap-1 hover:text-rose-300 transition-colors">
+                  <Trash2 className="w-3 h-3" /> Clear History
+                </button>
+              )}
+            </div>
+            {savedEntries.length === 0 ? (
+              <p className="text-xs text-white/70 text-center py-6 font-medium">No saved results found.</p>
+            ) : (
+              <div className="max-h-64 overflow-y-auto space-y-2 pr-2">
+                {savedEntries.map(entry => (
+                  <div key={entry.id} className="flex justify-between items-center p-3 rounded-xl bg-white/5 border border-white/10 group">
+                    <div>
+                      <p className="text-sm font-black text-[hsl(var(--brand-1))]">{entry.bmi} BMI – {entry.category}</p>
+                      <p className="text-[10px] text-white/70 font-bold">{entry.date} • {entry.age}y {entry.gender}</p>
+                    </div>
+                    <button onClick={() => deleteEntry(entry.id)} className="text-white/50 hover:text-rose-400 transition-colors group-hover:scale-110">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* BMI Categories Info */}
+        <div className="mt-6 p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <Info className="w-5 h-5 text-[hsl(var(--brand-1))]" />
+            <h4 className="text-sm font-black uppercase tracking-widest text-[hsl(var(--brand-1))]">BMI Categories (WHO Standards)</h4>
+          </div>
+          <div className="grid gap-3 text-sm">
+            <div className="flex justify-between items-center py-2 border-b border-white/10">
+              <span className="font-bold text-blue-400">Underweight</span>
+              <span className="text-white/70">&lt; 18.5</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-white/10">
+              <span className="font-bold text-green-400">Normal Weight</span>
+              <span className="text-white/70">18.5 - 24.9</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-white/10">
+              <span className="font-bold text-amber-400">Overweight</span>
+              <span className="text-white/70">25 - 29.9</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-white/10">
+              <span className="font-bold text-orange-400">Obese Class I</span>
+              <span className="text-white/70">30 - 34.9</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-white/10">
+              <span className="font-bold text-red-400">Obese Class II</span>
+              <span className="text-white/70">35 - 39.9</span>
+            </div>
+            <div className="flex justify-between items-center py-2">
+              <span className="font-bold text-red-600">Obese Class III</span>
+              <span className="text-white/70">≥ 40</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Footer Disclaimer */}
-      <div className="text-center py-6 border-t border-border flex flex-col items-center gap-3">
-        <div className="flex items-center gap-2 text-slate-400">
-           <Shield className="w-4 h-4" />
-           <p className="text-[10px] font-black uppercase tracking-[0.2em]">Clinical Disclaimer</p>
+      <div className="text-center py-6 border-t border-white/10 flex flex-col items-center gap-3 relative z-10">
+        <div className="flex items-center gap-2 text-white/70">
+          <Shield className="w-4 h-4" />
+          <p className="text-[10px] font-black uppercase tracking-[0.2em]">Medical Disclaimer</p>
         </div>
-        <p className="text-xs text-muted-foreground max-w-lg leading-relaxed font-medium">
-          Calculations are statistical estimations and should not be used as a substitute for medical grade body scans (DXA, BodPod) or professional healthcare consultation.
+        <p className="text-xs text-white/50 max-w-lg leading-relaxed font-medium px-8">
+          BMI is a screening tool and does not diagnose health conditions. Consult healthcare professionals for comprehensive health assessment.
         </p>
       </div>
     </div>
@@ -741,10 +1181,8 @@ function BodyFatCalculator() {
 }
 
 function CalorieCalculator() {
-  // Unit system
   const [unitSystem, setUnitSystem] = useState<UnitSystem>("metric");
-
-  // Personal data
+  const [activeTab, setActiveTab] = useState<"calculator" | "converter" | "mealPlans" | "exercise">("calculator");
   const [age, setAge] = useState<number>(25);
   const [gender, setGender] = useState<Gender>("male");
   const [heightCm, setHeightCm] = useState<number>(180);
@@ -752,758 +1190,217 @@ function CalorieCalculator() {
   const [heightInches, setHeightInches] = useState<number>(11);
   const [weightKg, setWeightKg] = useState<number>(75);
   const [weightLbs, setWeightLbs] = useState<number>(165);
-  const [bodyFat, setBodyFat] = useState<number>(20);
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>("moderate");
-  const [bmrFormula, setBmrFormula] = useState<BMRFormula>("mifflin");
-  const [weightGoal, setWeightGoal] = useState<WeightGoal>("maintain");
-  const [weeklyGoal, setWeeklyGoal] = useState<number>(0.5); // lbs per week or kg per week
-
-  // Zigzag schedule
-  const [showZigzag, setShowZigzag] = useState<boolean>(false);
-  const [zigzagType, setZigzagType] = useState<"standard" | "gradual">(
-    "standard"
-  );
-
-  // Results
   const [result, setResult] = useState<BMRResult | null>(null);
 
-  // Current active tab
-  const [activeTab, setActiveTab] = useState<Tab>("calculator");
-
   // Converter state
-  const [caloriesInput, setCaloriesInput] = useState<number>(1);
-  const [convertedKJ, setConvertedKJ] = useState<number>(4.1868);
-
-  // Expanded info
-  const [expandedSections, setExpandedSections] = useState({
-    formulas: false,
-    zigzagInfo: false,
-  });
-
-  // Derived height/weight in metric
-  const getHeightMeters = (): number => {
-    if (unitSystem === "metric") return heightCm / 100;
-    const totalInches = heightFeet * 12 + heightInches;
-    return totalInches * 0.0254;
-  };
-
-  const getWeightKg = (): number => {
-    if (unitSystem === "metric") return weightKg;
-    return weightLbs * 0.453592;
-  };
-
-  // BMR calculations
-  const calculateBMR = (): number => {
-    const weight = getWeightKg();
-    const height = getHeightMeters() * 100; // cm
-    const ageVal = age;
-    const fat = bodyFat / 100;
-
-    if (bmrFormula === "mifflin") {
-      if (gender === "male")
-        return 10 * weight + 6.25 * height - 5 * ageVal + 5;
-      else return 10 * weight + 6.25 * height - 5 * ageVal - 161;
-    } else if (bmrFormula === "harris") {
-      if (gender === "male")
-        return 13.397 * weight + 4.799 * height - 5.677 * ageVal + 88.362;
-      else return 9.247 * weight + 3.098 * height - 4.33 * ageVal + 447.593;
-    } else {
-      // Katch-McArdle
-      if (bodyFat <= 0 || bodyFat >= 60) return 370 + 21.6 * weight;
-      const leanMass = weight * (1 - fat);
-      return 370 + 21.6 * leanMass;
-    }
-  };
-
-  const calculateTDEE = (bmr: number): number => {
-    return bmr * activityMultipliers[activityLevel];
-  };
-
-  const calculateMacros = (calories: number) => {
-    // Default macro split: 30% protein, 40% carbs, 30% fat
-    const proteinCal = calories * 0.3;
-    const carbsCal = calories * 0.4;
-    const fatCal = calories * 0.3;
-    return {
-      protein: Math.round(proteinCal / 4),
-      carbs: Math.round(carbsCal / 4),
-      fat: Math.round(fatCal / 9),
-    };
-  };
+  const [caloriesInput, setCaloriesInput] = useState<number>(500);
+  const [convertedKJ, setConvertedKJ] = useState<number>(2093.4);
 
   useEffect(() => {
-    const bmr = calculateBMR();
-    const tdee = calculateTDEE(bmr);
-    const maintenance = tdee;
+    setConvertedKJ(parseFloat((caloriesInput * 4.1868).toFixed(1)));
+  }, [caloriesInput]);
 
-    // Weekly calorie deficit/surplus: 1 lb = 3500 kcal, 0.45 kg = 3500 kcal
-    const caloriesPerUnit = 3500; // per lb
-    const weeklyChange = weeklyGoal * caloriesPerUnit;
-    const dailyChange = weeklyChange / 7;
-
-    let lossMild = maintenance - 250;
-    let lossModerate = maintenance - 500;
-    let lossAggressive = maintenance - 1000;
-    let gainMild = maintenance + 250;
-    let gainModerate = maintenance + 500;
-    let gainAggressive = maintenance + 1000;
-
-    // Clamp to safe minimum (1200 for women, 1500 for men)
-    const minSafe = gender === "female" ? 1200 : 1500;
-    lossMild = Math.max(lossMild, minSafe);
-    lossModerate = Math.max(lossModerate, minSafe);
-    lossAggressive = Math.max(lossAggressive, minSafe);
-
-    const macros = calculateMacros(maintenance);
-
+  const calculate = () => {
+    const weight = unitSystem === "metric" ? weightKg : weightLbs * 0.453592;
+    const height = unitSystem === "metric" ? heightCm : (heightFeet * 12 + heightInches) * 2.54;
+    let bmr = 10 * weight + 6.25 * height - 5 * age;
+    bmr = gender === "male" ? bmr + 5 : bmr - 161;
+    const tdee = bmr * activityMultipliers[activityLevel];
     setResult({
       bmr: Math.round(bmr),
       tdee: Math.round(tdee),
-      maintenance: Math.round(maintenance),
+      maintenance: Math.round(tdee),
       weightLoss: {
-        mild: Math.round(lossMild),
-        moderate: Math.round(lossModerate),
-        aggressive: Math.round(lossAggressive),
+        mild: Math.round(tdee - 250),
+        moderate: Math.round(tdee - 500),
+        aggressive: Math.round(tdee - 1000),
       },
       weightGain: {
-        mild: Math.round(gainMild),
-        moderate: Math.round(gainModerate),
-        aggressive: Math.round(gainAggressive),
+        mild: Math.round(tdee + 250),
+        moderate: Math.round(tdee + 500),
+        aggressive: Math.round(tdee + 1000),
       },
-      macros,
+      macros: {
+        protein: Math.round(weight * 2.2),
+        carbs: Math.round((tdee * 0.45) / 4),
+        fat: Math.round((tdee * 0.25) / 9),
+      }
     });
-  }, [
-    age,
-    gender,
-    heightCm,
-    heightFeet,
-    heightInches,
-    weightKg,
-    weightLbs,
-    bodyFat,
-    activityLevel,
-    bmrFormula,
-    unitSystem,
-    weeklyGoal,
-  ]);
+  };
 
-  // Converter effect
   useEffect(() => {
-    setConvertedKJ(parseFloat((caloriesInput * 4.1868).toFixed(2)));
-  }, [caloriesInput]);
+    calculate();
+  }, [age, gender, heightCm, heightFeet, heightInches, weightKg, weightLbs, activityLevel, unitSystem]);
 
-  // Helper to get current recommended calorie intake based on goal
-  const getRecommendedCalories = (): number => {
-    if (!result) return result?.maintenance || 2000;
-    if (weightGoal === "maintain") return result.maintenance;
-    if (weightGoal === "lose") {
-      if (weeklyGoal <= 0.5) return result.weightLoss.mild;
-      if (weeklyGoal <= 1) return result.weightLoss.moderate;
-      return result.weightLoss.aggressive;
-    }
-    // gain
-    if (weeklyGoal <= 0.5) return result.weightGain.mild;
-    if (weeklyGoal <= 1) return result.weightGain.moderate;
-    return result.weightGain.aggressive;
-  };
-
-  // Zigzag schedule generation
-  const generateZigzagSchedule = () => {
-    if (!result) return [];
-    const maintenance = result.maintenance;
-    const target = getRecommendedCalories();
-    const diff = maintenance - target; // positive for loss, negative for gain
-    const weeklyTotal = target * 7;
-    if (zigzagType === "standard") {
-      // 2 high days, 5 low days
-      const high = maintenance - diff * 0.5; // smaller deficit
-      const low = maintenance - diff * 1.5;
-      return [
-        { day: "Mon", calories: Math.round(low) },
-        { day: "Tue", calories: Math.round(low) },
-        { day: "Wed", calories: Math.round(high) },
-        { day: "Thu", calories: Math.round(low) },
-        { day: "Fri", calories: Math.round(high) },
-        { day: "Sat", calories: Math.round(low) },
-        { day: "Sun", calories: Math.round(low) },
-      ];
-    } else {
-      // Gradual: increase/decrease over week
-      const base = target;
-      const range = 250;
-      const step = (range * 2) / 6; // from -range to +range
-      return ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(
-        (day, idx) => ({
-          day,
-          calories: Math.round(base - range + idx * step),
-        })
-      );
-    }
-  };
-
-  const zigzagSchedule = generateZigzagSchedule();
-
-  const toggleSection = (section: keyof typeof expandedSections) => {
-    setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
-  };
-
-  // Sample meal plans (calories)
   const mealPlans = {
-    1200: {
-      breakfast: "All-bran cereal (125) + Milk (50) + Banana (90)",
-      lunch: "Grilled cheese with tomato (300) + Salad (50)",
-      dinner: "Grilled Chicken (200) + Brussel sprouts (100) + Quinoa (105)",
-      snacks: "Cucumber (30) + Avocado dip (50)",
-    },
-    1500: {
-      breakfast: "Granola (120) + Greek yogurt (120) + Blueberries (40)",
-      lunch: "Chicken and vegetable soup (300) + Bread (100)",
-      dinner: "Steak (375) + Mashed potatoes (150) + Asparagus (75)",
-      snacks: "Apple (75) + Peanut butter (75)",
-    },
-    2000: {
-      breakfast: "Buttered toast (150) + Egg (80) + Banana (90) + Almonds (170)",
-      lunch: "Grilled chicken (225) + Grilled vegetables (125) + Pasta (185)",
-      dinner: "Grilled salmon (225) + Brown rice (175) + Green beans (100) + Walnuts (165)",
-      snacks: "Hummus (50) + Baby carrots (35) + Crackers (65)",
-    },
+    1500: { breakfast: "Oats & Berries (350)", lunch: "Chicken Salad (450)", dinner: "Salmon & Greens (500)", snacks: "Greek Yogurt (200)" },
+    2000: { breakfast: "Eggs & Toast (450)", lunch: "Quinoa Bowl (600)", dinner: "Steak & Potatoes (700)", snacks: "Nuts & Fruit (250)" },
+    2500: { breakfast: "Protein Pancakes (600)", lunch: "Turkey Wrap (750)", dinner: "Pasta Bolognese (850)", snacks: "Protein Shake (300)" },
   };
 
   const exerciseBurn = [
-    { activity: "Walking (3.5 mph)", perHour: { 125: 215, 155: 267, 185: 319 } },
-    { activity: "Running (9 min/mile)", perHour: { 125: 624, 155: 773, 185: 923 } },
-    { activity: "Bicycling (12-14 mph)", perHour: { 125: 454, 155: 562, 185: 671 } },
-    { activity: "Swimming (moderate)", perHour: { 125: 397, 155: 492, 185: 587 } },
-    { activity: "Basketball (general)", perHour: { 125: 340, 155: 422, 185: 503 } },
-    { activity: "Soccer (general)", perHour: { 125: 397, 155: 492, 185: 587 } },
+    { activity: "Weight Training", kcal: 450, perHour: { 125: 300, 155: 450, 185: 550 } },
+    { activity: "Running (Moderate)", kcal: 600, perHour: { 125: 500, 155: 600, 185: 750 } },
+    { activity: "Cycling", kcal: 500, perHour: { 125: 400, 155: 500, 185: 600 } },
+    { activity: "Swimming", kcal: 550, perHour: { 125: 450, 155: 550, 185: 700 } },
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 md:py-12 space-y-8">
-      {/* Header */}
-      <div className="text-center mb-6">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-orange-500/10 to-amber-500/10 text-orange-700 dark:text-orange-400 text-sm font-medium mb-4">
-          <Flame className="w-4 h-4" />
-          Personalised Energy Needs
-        </div>
-        <h1 className="text-4xl md:text-5xl font-black bg-gradient-brand bg-clip-text text-transparent">
-          Calorie Calculator
-        </h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-3 max-w-2xl mx-auto font-medium">
-          Estimate daily calorie needs based on your goals, activity, and body composition.
-        </p>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-2 border-b border-slate-200 dark:border-slate-800">
-        {[
-          { id: "calculator", label: "Calculator", icon: Calculator },
-          { id: "converter", label: "Energy Converter", icon: Battery },
-          { id: "mealPlans", label: "Meal Plans", icon: Utensils },
-          { id: "exercise", label: "Exercise Burn", icon: Footprints },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as Tab)}
-            className={`flex items-center gap-2 px-5 py-3 font-semibold text-sm rounded-t-xl transition-all ${
-              activeTab === tab.id
-                ? "bg-white dark:bg-slate-900 text-primary border-b-2 border-primary"
-                : "text-slate-500 hover:text-slate-700 dark:text-slate-400"
-            }`}
-          >
-            <tab.icon className="w-4 h-4" />
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Calculator Tab */}
-      {activeTab === "calculator" && (
-        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-          {/* Unit toggle */}
-          <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
-            {[
-              { value: "metric", label: "Metric Units", icon: RulerIcon },
-              { value: "imperial", label: "Imperial Units", icon: WeightIcon },
-            ].map((unit) => (
+    <div className="glass-card rounded-[2.5rem] border border-white/10 shadow-2xl overflow-hidden bg-white/5 backdrop-blur-xl relative group h-full flex flex-col">
+      <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent pointer-events-none" />
+      
+      <div className="p-8 md:p-10 border-b border-white/10 relative z-10">
+        <div className="flex items-center justify-between mb-6">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center shadow-inner">
+            <Flame className="w-6 h-6" />
+          </div>
+          <div className="flex gap-1 bg-black/20 p-1 rounded-xl border border-white/5">
+            {["calculator", "converter", "mealPlans", "exercise"].map((t) => (
               <button
-                key={unit.value}
-                onClick={() => setUnitSystem(unit.value as UnitSystem)}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 font-semibold text-sm transition-all ${
-                  unitSystem === unit.value
-                    ? "border-b-2 border-primary text-primary bg-white dark:bg-slate-900"
-                    : "text-slate-500"
-                }`}
+                key={t}
+                onClick={() => setActiveTab(t as any)}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                  activeTab === t ? "bg-indigo-500 text-white shadow-lg" : "text-slate-500 hover:text-white"
+                )}
               >
-                <unit.icon className="w-4 h-4" />
-                {unit.label}
+                {t.replace("mealPlans", "Plans")}
               </button>
             ))}
           </div>
+        </div>
+        <h2 className="text-3xl font-black tracking-tight">Energy Hub</h2>
+      </div>
 
-          <div className="p-6 md:p-8">
-            <div className="grid md:grid-cols-2 gap-x-8 gap-y-6">
-              {/* Age & Gender */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-primary" />
-                  Age
-                </label>
-                <input
-                  type="number"
-                  value={age}
-                  onChange={(e) => setAge(Math.min(120, Math.max(15, parseInt(e.target.value) || 15)))}
-                  className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-primary/20 transition"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
-                  <User className="w-4 h-4 text-primary" />
-                  Gender
-                </label>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setGender("male")}
-                    className={`flex-1 py-3 rounded-xl font-semibold transition ${
-                      gender === "male"
-                        ? "bg-gradient-brand text-white shadow-brand"
-                        : "bg-slate-100 dark:bg-slate-800 text-slate-600"
-                    }`}
-                  >
-                    Male
-                  </button>
-                  <button
-                    onClick={() => setGender("female")}
-                    className={`flex-1 py-3 rounded-xl font-semibold transition ${
-                      gender === "female"
-                        ? "bg-gradient-brand text-white shadow-brand"
-                        : "bg-slate-100 dark:bg-slate-800 text-slate-600"
-                    }`}
-                  >
-                    Female
-                  </button>
-                </div>
-              </div>
-
-              {/* Height */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
-                  <RulerIcon className="w-4 h-4 text-primary" />
-                  Height
-                </label>
-                {unitSystem === "metric" ? (
-                  <div className="relative">
-                    <input
-                      type="number"
-                      value={heightCm}
-                      onChange={(e) => setHeightCm(parseInt(e.target.value) || 0)}
-                      className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-primary/20 transition"
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-400">cm</span>
-                  </div>
-                ) : (
-                  <div className="flex gap-3">
-                    <div className="flex-1 relative">
-                      <input
-                        type="number"
-                        value={heightFeet}
-                        onChange={(e) => setHeightFeet(parseInt(e.target.value) || 0)}
-                        className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-primary/20 transition"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm">ft</span>
-                    </div>
-                    <div className="flex-1 relative">
-                      <input
-                        type="number"
-                        value={heightInches}
-                        onChange={(e) => setHeightInches(Math.min(11, parseInt(e.target.value) || 0))}
-                        className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-primary/20 transition"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm">in</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Weight */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
-                  <WeightIcon className="w-4 h-4 text-primary" />
-                  Weight
-                </label>
-                {unitSystem === "metric" ? (
-                  <div className="relative">
-                    <input
-                      type="number"
-                      value={weightKg}
-                      onChange={(e) => setWeightKg(parseFloat(e.target.value) || 0)}
-                      step="0.5"
-                      className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-primary/20 transition"
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm">kg</span>
-                  </div>
-                ) : (
-                  <div className="relative">
-                    <input
-                      type="number"
-                      value={weightLbs}
-                      onChange={(e) => setWeightLbs(parseFloat(e.target.value) || 0)}
-                      step="1"
-                      className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-primary/20 transition"
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm">lbs</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Body Fat */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-primary" />
-                  Body Fat % (optional)
-                </label>
-                <input
-                  type="number"
-                  value={bodyFat}
-                  onChange={(e) => setBodyFat(Math.min(60, Math.max(5, parseInt(e.target.value) || 0)))}
-                  className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-primary/20 transition"
-                  step="1"
-                />
-              </div>
-
-              {/* Activity */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
-                  <Dumbbell className="w-4 h-4 text-primary" />
-                  Activity Level
-                </label>
-                <select
-                  value={activityLevel}
-                  onChange={(e) => setActivityLevel(e.target.value as ActivityLevel)}
-                  className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-primary/20 transition"
-                >
-                  {Object.entries(activityLabels).map(([key, label]) => (
-                    <option key={key} value={key}>
-                      {label}
-                    </option>
+      <div className="p-8 md:p-10 flex-1 relative z-10 overflow-y-auto">
+        {activeTab === "calculator" && (
+          <div className="space-y-8 animate-in fade-in duration-500">
+            <div className="grid md:grid-cols-2 gap-8">
+              <div className="space-y-4">
+                <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest block">Profile</label>
+                <div className="flex gap-2">
+                  {["male", "female"].map(g => (
+                    <button key={g} onClick={() => setGender(g as any)} className={cn("flex-1 py-3 rounded-xl font-black text-[10px] uppercase border tracking-widest", gender === g ? "bg-white text-black border-white" : "border-white/10 text-slate-400")}>{g}</button>
                   ))}
-                </select>
-              </div>
-
-              {/* BMR Formula */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
-                  <Calculator className="w-4 h-4 text-primary" />
-                  BMR Formula
-                </label>
-                <select
-                  value={bmrFormula}
-                  onChange={(e) => setBmrFormula(e.target.value as BMRFormula)}
-                  className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-primary/20 transition"
-                >
-                  <option value="mifflin">Mifflin-St Jeor (most accurate)</option>
-                  <option value="harris">Revised Harris-Benedict</option>
-                  <option value="katch">Katch-McArdle (needs body fat)</option>
-                </select>
-              </div>
-
-              {/* Goal */}
-              <div className="md:col-span-2 grid md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-semibold mb-2">Weight Goal</label>
-                  <div className="flex gap-2">
-                    {(["lose", "maintain", "gain"] as WeightGoal[]).map((goal) => (
-                      <button
-                        key={goal}
-                        onClick={() => setWeightGoal(goal)}
-                        className={`flex-1 py-3 rounded-xl font-semibold capitalize transition ${
-                          weightGoal === goal
-                            ? "bg-gradient-brand text-white shadow-brand"
-                            : "bg-slate-100 dark:bg-slate-800 text-slate-600"
-                        }`}
-                      >
-                        {goal === "lose" && <TrendingDown className="inline w-4 h-4 mr-1" />}
-                        {goal === "gain" && <TrendingUp className="inline w-4 h-4 mr-1" />}
-                        {goal === "maintain" && <Heart className="inline w-4 h-4 mr-1" />}
-                        {goal}
-                      </button>
-                    ))}
-                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold mb-2">
-                    Weekly Rate ({unitSystem === "metric" ? "kg/week" : "lbs/week"})
-                  </label>
-                  <input
-                    type="number"
-                    step="0.25"
-                    min="0.25"
-                    max="2"
-                    value={weeklyGoal}
-                    onChange={(e) => setWeeklyGoal(parseFloat(e.target.value) || 0.5)}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-primary/20 transition"
-                  />
-                  <p className="text-xs text-slate-500 mt-1">Max safe rate ~1 kg / 2 lbs per week</p>
+                <div className="relative">
+                  <input type="number" value={age} onChange={e => setAge(parseInt(e.target.value) || 18)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none" />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-500 uppercase">Age</span>
                 </div>
+              </div>
+              <div className="space-y-4">
+                <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest block">Biometrics</label>
+                <div className="grid grid-cols-2 gap-2">
+                   <div className="relative">
+                    <input type="number" value={unitSystem === "metric" ? heightCm : heightFeet} onChange={e => unitSystem === "metric" ? setHeightCm(parseInt(e.target.value)) : setHeightFeet(parseInt(e.target.value))} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold outline-none" />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-500">{unitSystem === "metric" ? "CM" : "FT"}</span>
+                   </div>
+                   <div className="relative">
+                    <input type="number" value={unitSystem === "metric" ? weightKg : weightLbs} onChange={e => unitSystem === "metric" ? setWeightKg(parseFloat(e.target.value)) : setWeightLbs(parseFloat(e.target.value))} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold outline-none" />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-500">{unitSystem === "metric" ? "KG" : "LBS"}</span>
+                   </div>
+                </div>
+                <select value={activityLevel} onChange={e => setActivityLevel(e.target.value as any)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold outline-none appearance-none">
+                  {Object.keys(activityLabels).map(k => <option key={k} value={k} className="bg-slate-900">{k.toUpperCase()}</option>)}
+                </select>
               </div>
             </div>
 
-            {/* Results */}
             {result && (
-              <div className="mt-8 rounded-2xl bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30 p-6 border border-orange-200 dark:border-orange-800 animate-in fade-in zoom-in duration-500">
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <p className="text-sm uppercase tracking-wider text-orange-600 font-bold">Basal Metabolic Rate</p>
-                    <p className="text-3xl font-black">{result.bmr} kcal/day</p>
-                    <p className="text-sm text-slate-500 font-medium">Resting energy expenditure</p>
-                    <div className="mt-3 h-px bg-orange-200 dark:bg-orange-800 my-3" />
-                    <p className="text-sm uppercase tracking-wider text-orange-600 font-bold">Total Daily Energy Expenditure</p>
-                    <p className="text-3xl font-black">{result.tdee} kcal/day</p>
-                    <p className="text-sm text-slate-500 font-medium">With {activityLabels[activityLevel].toLowerCase()}</p>
+              <div className="bg-slate-900 rounded-[2rem] p-8 border border-white/10 space-y-8">
+                <div className="text-center">
+                  <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] mb-2">TDEE Forecast</p>
+                  <p className="text-5xl font-black">{result.tdee}<span className="text-lg text-slate-500 ml-2">kcal</span></p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center">
+                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Protein</p>
+                    <p className="text-lg font-black">{result.macros.protein}g</p>
                   </div>
-                  <div>
-                    <p className="text-sm uppercase tracking-wider text-orange-600 font-bold">Recommended Daily Intake</p>
-                    <p className="text-4xl font-black text-orange-600">{getRecommendedCalories()} kcal</p>
-                    <p className="text-sm text-slate-500 font-medium">
-                      To {weightGoal} {weeklyGoal} {unitSystem === "metric" ? "kg" : "lbs"} per week
-                    </p>
-                    <div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
-                      <div className="p-2 rounded-xl bg-white/50 dark:bg-black/20">
-                        <span className="font-bold block text-[10px] uppercase text-slate-500">Protein</span>
-                        <p className="font-black">{result.macros.protein}g</p>
-                      </div>
-                      <div className="p-2 rounded-xl bg-white/50 dark:bg-black/20">
-                        <span className="font-bold block text-[10px] uppercase text-slate-500">Carbs</span>
-                        <p className="font-black">{result.macros.carbs}g</p>
-                      </div>
-                      <div className="p-2 rounded-xl bg-white/50 dark:bg-black/20">
-                        <span className="font-bold block text-[10px] uppercase text-slate-500">Fat</span>
-                        <p className="font-black">{result.macros.fat}g</p>
-                      </div>
-                    </div>
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center">
+                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Carbs</p>
+                    <p className="text-lg font-black">{result.macros.carbs}g</p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center">
+                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Fats</p>
+                    <p className="text-lg font-black">{result.macros.fat}g</p>
                   </div>
                 </div>
 
-                {/* Zigzag Toggle */}
-                <div className="mt-6 pt-4 border-t border-orange-200 dark:border-orange-800">
-                  <button
-                    onClick={() => setShowZigzag(!showZigzag)}
-                    className="flex items-center gap-2 text-sm font-bold text-orange-600 hover:scale-105 transition-transform"
-                  >
-                    <Zap className="w-4 h-4 fill-orange-500" />
-                    {showZigzag ? "Hide" : "Show"} Zigzag Calorie Cycling
-                  </button>
-                  {showZigzag && (
-                    <div className="mt-3 space-y-3 animate-in slide-in-from-top-2 duration-300">
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => setZigzagType("standard")}
-                          className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
-                            zigzagType === "standard"
-                              ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30"
-                              : "bg-slate-200 dark:bg-slate-700 text-slate-600"
-                          }`}
-                        >
-                          2 high / 5 low
-                        </button>
-                        <button
-                          onClick={() => setZigzagType("gradual")}
-                          className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
-                            zigzagType === "gradual"
-                              ? "bg-orange-500 text-white shadow-lg shadow-orange-500/30"
-                              : "bg-slate-200 dark:bg-slate-700 text-slate-600"
-                          }`}
-                        >
-                          Gradual variation
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-4 sm:grid-cols-7 gap-1 text-center text-[10px] font-bold">
-                        {zigzagSchedule.map((day) => (
-                          <div key={day.day} className="bg-white dark:bg-slate-800 rounded-lg p-2 border border-orange-100 dark:border-orange-900/50">
-                            <p className="text-slate-400 uppercase">{day.day}</p>
-                            <p className="text-orange-600">{day.calories}</p>
-                          </div>
-                        ))}
-                      </div>
-                      <p className="text-[10px] text-slate-500 font-medium">
-                        Weekly total:{" "}
-                        <span className="font-bold">{zigzagSchedule.reduce((sum, d) => sum + d.calories, 0)}</span> kcal
-                      </p>
-                    </div>
-                  )}
+                <div className="space-y-4">
+                  <p className="text-[10px] font-black text-[hsl(var(--brand-1))] uppercase tracking-[0.2em]">Metabolic Targets</p>
+                  <div className="grid gap-3">
+                    <TargetRow label="Fat Loss (Mild)" value={result.weightLoss.mild} color="rose" />
+                    <TargetRow label="Fat Loss (Mod)" value={result.weightLoss.moderate} color="rose" />
+                    <TargetRow label="Lean Bulk" value={result.weightGain.mild} color="emerald" />
+                  </div>
                 </div>
               </div>
             )}
-
-            {/* Expandable Info */}
-            <div className="mt-6 space-y-3">
-              <button
-                onClick={() => toggleSection("formulas")}
-                className="flex items-center justify-between w-full p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-              >
-                <span className="font-bold text-sm flex items-center gap-2"><Info className="w-4 h-4 text-primary" /> About BMR Formulas</span>
-                {expandedSections.formulas ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-              {expandedSections.formulas && (
-                <div className="text-xs text-slate-600 dark:text-slate-400 p-4 border-l-4 border-primary bg-slate-50/50 dark:bg-slate-800/30 rounded-r-xl animate-in fade-in duration-300">
-                  <p className="mb-1"><strong>Mifflin-St Jeor</strong> (1990): Most accurate for general population.</p>
-                  <p className="mb-1"><strong>Harris-Benedict</strong> (revised 1984): Older but still used.</p>
-                  <p><strong>Katch-McArdle</strong>: Uses lean body mass – best if you know body fat %.</p>
-                </div>
-              )}
-              <button
-                onClick={() => toggleSection("zigzagInfo")}
-                className="flex items-center justify-between w-full p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-              >
-                <span className="font-bold text-sm flex items-center gap-2"><Zap className="w-4 h-4 text-orange-500" /> What is Zigzag Calorie Cycling?</span>
-                {expandedSections.zigzagInfo ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-              {expandedSections.zigzagInfo && (
-                <div className="text-xs text-slate-600 dark:text-slate-400 p-4 border-l-4 border-orange-500 bg-slate-50/50 dark:bg-slate-800/30 rounded-r-xl animate-in fade-in duration-300">
-                  Alternating daily calorie intake prevents metabolic adaptation, reduces hunger, and makes dieting more flexible. Total weekly calories stay the same.
-                </div>
-              )}
-            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Converter Tab */}
-      {activeTab === "converter" && (
-        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-border p-6 md:p-8 animate-in slide-in-from-right-4 duration-500">
-          <h2 className="text-2xl font-black mb-6 flex items-center gap-2">
-            <Battery className="w-6 h-6 text-orange-500" />
-            Food Energy Converter
-          </h2>
-          <div className="grid sm:grid-cols-2 gap-8">
-            <div>
-              <label className="block text-[10px] font-black uppercase text-muted-foreground mb-2 tracking-widest">Calories (kcal)</label>
-              <input
-                type="number"
-                value={caloriesInput}
-                onChange={(e) => setCaloriesInput(parseFloat(e.target.value) || 0)}
-                className="w-full px-4 py-4 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-border outline-none focus:ring-2 focus:ring-primary/20 text-xl font-bold"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-black uppercase text-muted-foreground mb-2 tracking-widest">Kilojoules (kJ)</label>
-              <input
-                type="number"
-                value={convertedKJ}
-                readOnly
-                className="w-full px-4 py-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-border text-slate-500 text-xl font-bold"
-              />
-              <p className="text-[10px] text-slate-500 mt-2 font-bold uppercase tracking-wider">Conversion rate: 1 kcal = 4.1868 kJ</p>
-            </div>
-          </div>
-          <div className="mt-8 p-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-border">
-            <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-4">Quick Reference</p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[1, 100, 500, 1000].map(val => (
-                <div key={val} className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-border shadow-sm">
-                  <p className="text-lg font-black text-primary">{val} <span className="text-[10px] text-muted-foreground">kcal</span></p>
-                  <p className="text-sm font-bold text-slate-500">{(val * 4.1868).toFixed(1)} <span className="text-[10px]">kJ</span></p>
+        {activeTab === "converter" && (
+          <div className="space-y-6 animate-in fade-in duration-500">
+             <div className="space-y-4">
+                <label className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Kcal to KJ</label>
+                <div className="grid gap-4">
+                  <div className="relative">
+                    <input type="number" value={caloriesInput} onChange={e => setCaloriesInput(parseFloat(e.target.value) || 0)} className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-5 text-2xl font-black outline-none" />
+                    <span className="absolute right-6 top-1/2 -translate-y-1/2 text-xs font-black text-slate-500">KCAL</span>
+                  </div>
+                  <div className="relative">
+                    <input type="number" value={convertedKJ} readOnly className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-5 text-2xl font-black text-indigo-400 outline-none" />
+                    <span className="absolute right-6 top-1/2 -translate-y-1/2 text-xs font-black text-slate-500">KJ</span>
+                  </div>
                 </div>
-              ))}
-            </div>
+             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Meal Plans Tab */}
-      {activeTab === "mealPlans" && (
-        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-border p-6 md:p-8 animate-in slide-in-from-right-4 duration-500">
-          <h2 className="text-2xl font-black mb-6 flex items-center gap-2">
-            <Utensils className="w-6 h-6 text-orange-500" />
-            Strategic Meal Blueprints
-          </h2>
-          <div className="grid md:grid-cols-3 gap-6">
+        {activeTab === "mealPlans" && (
+          <div className="grid gap-4 animate-in fade-in duration-500">
             {Object.entries(mealPlans).map(([cal, plan]) => (
-              <div key={cal} className="rounded-2xl bg-slate-50 dark:bg-slate-800/50 p-6 border border-border hover:border-orange-500/30 transition-all group">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-black text-orange-600 group-hover:scale-110 transition-transform">{cal} <span className="text-xs font-bold text-muted-foreground uppercase">kcal</span></h3>
-                  <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-950/30 flex items-center justify-center text-orange-600"><Coffee className="w-4 h-4" /></div>
-                </div>
-                <div className="space-y-4 text-xs">
-                  <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-border/50">
-                    <p className="font-black text-[9px] uppercase text-muted-foreground mb-1">Breakfast</p>
-                    <p className="font-medium text-slate-700 dark:text-slate-300">{plan.breakfast}</p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-border/50">
-                    <p className="font-black text-[9px] uppercase text-muted-foreground mb-1">Lunch</p>
-                    <p className="font-medium text-slate-700 dark:text-slate-300">{plan.lunch}</p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-border/50">
-                    <p className="font-black text-[9px] uppercase text-muted-foreground mb-1">Dinner</p>
-                    <p className="font-medium text-slate-700 dark:text-slate-300">{plan.dinner}</p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-border/50">
-                    <p className="font-black text-[9px] uppercase text-muted-foreground mb-1">Snacks</p>
-                    <p className="font-medium text-slate-700 dark:text-slate-300">{plan.snacks}</p>
-                  </div>
+              <div key={cal} className="p-6 rounded-3xl bg-white/5 border border-white/10 space-y-4">
+                <h3 className="text-xl font-black text-indigo-400">{cal} kcal</h3>
+                <div className="grid grid-cols-2 gap-4 text-[10px]">
+                  <div><p className="text-slate-500 uppercase mb-1">Breakfast</p><p className="font-bold">{plan.breakfast}</p></div>
+                  <div><p className="text-slate-500 uppercase mb-1">Lunch</p><p className="font-bold">{plan.lunch}</p></div>
+                  <div><p className="text-slate-500 uppercase mb-1">Dinner</p><p className="font-bold">{plan.dinner}</p></div>
+                  <div><p className="text-slate-500 uppercase mb-1">Snacks</p><p className="font-bold">{plan.snacks}</p></div>
                 </div>
               </div>
             ))}
           </div>
-          <div className="mt-8 p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 flex items-center gap-3">
-             <Info className="w-5 h-5 text-blue-600" />
-             <p className="text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-widest">Calculations are estimates. Portions should be weighed for maximum precision.</p>
-          </div>
-        </div>
-      )}
+        )}
 
-      {/* Exercise Burn Tab */}
-      {activeTab === "exercise" && (
-        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-border p-6 md:p-8 animate-in slide-in-from-right-4 duration-500">
-          <h2 className="text-2xl font-black mb-6 flex items-center gap-2">
-            <Footprints className="w-6 h-6 text-orange-500" />
-            Hourly Metabolic Burn
-          </h2>
-          <div className="overflow-hidden rounded-2xl border border-border">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-border">
-                  <th className="px-6 py-4 text-[10px] font-black uppercase text-muted-foreground tracking-widest">Activity Type</th>
-                  <th className="px-6 py-4 text-right text-[10px] font-black uppercase text-muted-foreground tracking-widest">125 lb <span className="lowercase font-medium">(57kg)</span></th>
-                  <th className="px-6 py-4 text-right text-[10px] font-black uppercase text-muted-foreground tracking-widest">155 lb <span className="lowercase font-medium">(70kg)</span></th>
-                  <th className="px-6 py-4 text-right text-[10px] font-black uppercase text-muted-foreground tracking-widest">185 lb <span className="lowercase font-medium">(84kg)</span></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {exerciseBurn.map((ex) => (
-                  <tr key={ex.activity} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                    <td className="px-6 py-4 text-sm font-bold text-slate-700 dark:text-slate-300">{ex.activity}</td>
-                    <td className="px-6 py-4 text-right font-black text-orange-600">{ex.perHour[125]}</td>
-                    <td className="px-6 py-4 text-right font-black text-orange-600">{ex.perHour[155]}</td>
-                    <td className="px-6 py-4 text-right font-black text-orange-600">{ex.perHour[185]}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {activeTab === "exercise" && (
+          <div className="space-y-4 animate-in fade-in duration-500">
+            {exerciseBurn.map((ex) => (
+              <div key={ex.activity} className="flex justify-between items-center p-5 rounded-2xl bg-white/5 border border-white/10">
+                <span className="font-bold text-sm">{ex.activity}</span>
+                <span className="text-indigo-400 font-black">{ex.kcal} kcal/hr</span>
+              </div>
+            ))}
           </div>
-          <div className="mt-8 flex items-center justify-center gap-6">
-             <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-orange-500 shadow-lg shadow-orange-500/50" />
-                <span className="text-[10px] font-black uppercase text-muted-foreground">Values = Total Kcal / Hour</span>
-             </div>
-             <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-blue-500 shadow-lg shadow-blue-500/50" />
-                <span className="text-[10px] font-black uppercase text-muted-foreground">Moderate Intensity Basis</span>
-             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Footer Disclaimer */}
-      <div className="text-center py-6 border-t border-border flex flex-col items-center gap-3">
-        <div className="flex items-center gap-2 text-slate-400">
-           <Shield className="w-4 h-4" />
-           <p className="text-[10px] font-black uppercase tracking-[0.2em]">Medical Disclaimer</p>
-        </div>
-        <p className="text-xs text-muted-foreground max-w-lg leading-relaxed font-medium">
-          The information provided by this tool is for educational purposes only and is not intended to replace professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition.
-        </p>
+        )}
       </div>
+      
+      <div className="p-6 border-t border-white/10 text-center">
+         <p className="text-[10px] font-medium text-slate-500 flex items-center justify-center gap-2">
+           <Shield className="w-3 h-3" /> Metabolic estimates based on MSJ formula.
+         </p>
+      </div>
+    </div>
+  );
+}
+
+function TargetRow({ label, value, color }: any) {
+  return (
+    <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10 group hover:bg-white/10 transition-all cursor-default">
+      <span className="text-xs font-black uppercase tracking-widest text-slate-400 group-hover:text-white transition-colors">{label}</span>
+      <span className={cn("text-lg font-black", color === "rose" ? "text-rose-400" : "text-emerald-400")}>{value} <span className="text-[10px]">kcal</span></span>
     </div>
   );
 }

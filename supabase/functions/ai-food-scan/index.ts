@@ -1,5 +1,7 @@
+// supabase/functions/ai-food-scan/index.ts
+
 /// <reference lib="deno.ns" />
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from "supabase"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,8 +39,8 @@ Deno.serve(async (req: Request) => {
     const { image, mime_type = "image/jpeg" } = await req.json().catch(() => ({}));
     if (!image) throw new Error("No image provided");
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) throw new Error("LOVABLE_API_KEY missing");
+    const openRouterKey = Deno.env.get("OPENROUTER_API_KEY");
+    if (!openRouterKey) throw new Error("OPENROUTER_API_KEY missing");
 
     const sys = `You are a certified nutritionist and food scientist with expertise in analyzing food from images.
 Analyze the food in the image and return ONLY valid JSON in this exact shape:
@@ -54,43 +56,75 @@ Rules:
 - Round all numbers to integers
 - If multiple food items are visible, combine them as one meal entry`;
 
-    const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: "google/gemini-1.5-flash",
-        messages: [
-          { role: "system", content: sys },
-          {
-            role: "user",
-            content: [
-              { type: "text", text: "Analyze this food image and return the nutritional information as JSON." },
-              { type: "image_url", image_url: { url: `data:${mime_type};base64,${image}` } },
-            ],
-          },
-        ],
-        response_format: { type: "json_object" },
-      }),
-    });
+    const models = [
+      "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "inclusionai/ring-2.6-1t:free",
+      "poolside/laguna-xs.2:free"
+    ];
 
-    if (!r.ok) {
-      const t = await r.text();
-      return new Response(JSON.stringify({ error: "AI service temporarily unavailable" }), {
-        status: r.status,
+    let lastError = null;
+    let resultData = null;
+
+    for (const model of models) {
+      try {
+        console.log(`Trying model: ${model}`);
+        const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json", 
+            "Authorization": `Bearer ${openRouterKey}`,
+            "HTTP-Referer": "https://jpfits.com",
+            "X-Title": "JP Fitness App"
+          },
+          body: JSON.stringify({
+            model: model,
+            messages: [
+              { role: "system", content: sys },
+              {
+                role: "user",
+                content: [
+                  { type: "text", text: "Analyze this food image and return the nutritional information as JSON." },
+                  { type: "image_url", image_url: { url: `data:${mime_type};base64,${image}` } },
+                ],
+              },
+            ],
+            response_format: { type: "json_object" },
+          }),
+        });
+
+        if (!r.ok) {
+          const errorText = await r.text();
+          console.error(`Model ${model} failed:`, errorText);
+          lastError = errorText;
+          continue;
+        }
+
+        const data = await r.json();
+        const content = data.choices?.[0]?.message?.content;
+        if (content) {
+          resultData = JSON.parse(content);
+          break; // Success!
+        }
+      } catch (e: any) {
+        console.error(`Error with model ${model}:`, e);
+        lastError = e.message;
+        continue;
+      }
+    }
+
+    if (!resultData) {
+      return new Response(JSON.stringify({ error: "AI service unavailable", details: lastError }), {
+        status: 503,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const data = await r.json();
-    const content = data.choices?.[0]?.message?.content || "{}";
-    const parsed = JSON.parse(content);
-
-    return new Response(JSON.stringify(parsed), {
+    return new Response(JSON.stringify(resultData), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (e) {
-    // Return generic error message to avoid exposing internal details
-    return new Response(JSON.stringify({ error: "An error occurred processing your request" }), {
+  } catch (e: any) {
+    console.error("Global error:", e);
+    return new Response(JSON.stringify({ error: "An error occurred processing your request", message: e.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

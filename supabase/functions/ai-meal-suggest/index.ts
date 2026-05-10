@@ -1,5 +1,7 @@
+// supabase/functions/ai-meal-suggest/index.ts
+
 /// <reference lib="deno.ns" />
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from "supabase"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
