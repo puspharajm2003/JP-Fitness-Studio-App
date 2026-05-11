@@ -5,6 +5,7 @@ export interface Coach {
   id: string;
   full_name: string;
   phone: string;
+  role: 'coach' | 'admin' | 'super_admin';
 }
 
 export function useCoaches() {
@@ -21,6 +22,7 @@ export function useCoaches() {
       if (!roleData) return;
 
       const userIds = roleData.map(r => r.user_id);
+      const roleMap = new Map(roleData.map(r => [r.user_id, r.role]));
 
       // Fetch profiles for these user_ids
       const { data: profiles } = await supabase
@@ -29,7 +31,11 @@ export function useCoaches() {
         .in("id", userIds);
 
       if (profiles) {
-        setCoaches(profiles as Coach[]);
+        const mapped = profiles.map(p => ({
+          ...p,
+          role: roleMap.get(p.id) as any
+        }));
+        setCoaches(mapped);
       }
     }
 

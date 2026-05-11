@@ -285,6 +285,17 @@ export default function Profile() {
 
   const coachExists = f.coach_name && matchCoachByName(f.coach_name) !== undefined;
   
+  const filteredCoaches = useMemo(() => {
+    if (isSuperAdmin) return coaches; // Super-admins see all
+    if (isAdmin) return coaches; // Admins see all
+    if (isCoach) {
+      // Coaches see Admins/Super-admins for support
+      return coaches.filter(c => c.role === 'admin' || c.role === 'super_admin');
+    }
+    // Regular members only see Coaches
+    return coaches.filter(c => c.role === 'coach');
+  }, [coaches, isAdmin, isSuperAdmin, isCoach]);
+
   // Unlock personal info editing for all users
   const canEditPersonalInfo = true;
 
@@ -498,7 +509,7 @@ export default function Profile() {
                         className="w-full px-5 py-3.5 rounded-2xl bg-secondary border border-border/50 text-sm font-bold outline-none transition-all focus:ring-4 focus:ring-primary/10 hover:bg-secondary/80 appearance-none"
                       >
                         <option value="">Select a coach...</option>
-                        {coaches.map((c: any) => (
+                        {filteredCoaches.map((c: any) => (
                           <option key={c.id} value={c.full_name}>{c.full_name}</option>
                         ))}
                       </select>
