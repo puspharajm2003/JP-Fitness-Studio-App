@@ -193,6 +193,15 @@ export default function Profile() {
   if (!user) return null;
 
   const save = async () => {
+    // Safety check for coaching validation
+    if (f.coach_name && !f.coach_id) {
+      return toast.error("Invalid Coach Name", {
+        description: isCoach 
+          ? "Please enter a valid Administrator's full name." 
+          : "Please enter a verified Coach's full name."
+      });
+    }
+
     try {
       const { error } = await update({
         full_name: f.full_name,
@@ -206,9 +215,9 @@ export default function Profile() {
         daily_water_goal_ml: parseInt(String(f.daily_water_goal_ml)) || 2500,
         daily_step_goal: parseInt(String(f.daily_step_goal)) || 10000,
         sleep_goal_hr: parseFloat(String(f.sleep_goal_hr)) || 8,
-        coach_phone: f.coach_phone,
+        coach_phone: f.coach_id ? f.coach_phone : null,
         coach_id: f.coach_id || null,
-        coach_name: f.coach_name || null,
+        coach_name: f.coach_id ? f.coach_name : null,
       });
 
       if (error) throw error;
