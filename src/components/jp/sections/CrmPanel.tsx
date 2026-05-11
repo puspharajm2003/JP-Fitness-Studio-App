@@ -206,9 +206,9 @@ export default function CrmPanel() {
     .sort((a, b) => b.assigned - a.assigned || a.name.localeCompare(b.name));
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col lg:flex-row overflow-hidden">
-      {/* Side Navigation - Apple Style */}
-      <aside className="w-full lg:w-72 bg-white dark:bg-slate-900 border-b lg:border-r border-slate-200 dark:border-slate-800 p-6 flex flex-col">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col lg:flex-row overflow-hidden pb-24 lg:pb-0">
+      {/* Side Navigation - Desktop only */}
+      <aside className="hidden lg:flex sticky top-0 h-screen w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 p-6 flex-col z-30">
         <div className="flex items-center gap-3 mb-10">
           <div className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center">
             <Shield className="w-6 h-6" />
@@ -235,6 +235,28 @@ export default function CrmPanel() {
           </Link>
         </div>
       </aside>
+
+      {/* Mobile Floating Hub Navigation */}
+      <div className="lg:hidden fixed bottom-6 left-4 right-4 z-50">
+        <div className="glass-card bg-slate-950/90 dark:bg-slate-900/95 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 p-2 shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center justify-between relative overflow-hidden">
+          {/* Animated Glow Background */}
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-transparent to-primary/10 animate-pulse pointer-events-none" />
+          
+          <div className="flex flex-1 items-center justify-around">
+            <MobileTab active={activeTab === "overview"} onClick={() => setActiveTab("overview")} icon={LayoutGrid} />
+            <MobileTab active={activeTab === "members"} onClick={() => setActiveTab("members")} icon={Users2} />
+            <MobileTab active={activeTab === "points"} onClick={() => setActiveTab("points")} icon={Award} />
+            <MobileTab active={activeTab === "coaches"} onClick={() => setActiveTab("coaches")} icon={Shield} />
+            <MobileTab active={activeTab === "ai_assist"} onClick={() => setActiveTab("ai_assist")} icon={Sparkles} />
+          </div>
+
+          <div className="w-[1px] h-8 bg-white/10 mx-2" />
+
+          <Link to="/profile" className="w-12 h-12 rounded-[1.5rem] bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-white/10 transition-all group active:scale-90">
+             <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+          </Link>
+        </div>
+      </div>
 
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-12 relative">
@@ -685,5 +707,25 @@ function StatCard({ label, value, icon: Icon, trend, color }: any) {
       <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">{label}</p>
       <p className="font-display text-3xl font-black text-slate-900 dark:text-white leading-none">{value}</p>
     </div>
+  );
+}
+
+// Mobile Tab Item Component
+function MobileTab({ active, onClick, icon: Icon }: any) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "relative w-12 h-12 rounded-[1.5rem] flex items-center justify-center transition-all duration-500 overflow-hidden",
+        active ? "bg-white text-slate-950 shadow-xl scale-110" : "text-white/40 hover:text-white"
+      )}
+    >
+      <div className="relative z-10">
+        <Icon className={cn("w-5 h-5", active && "animate-pulse")} />
+      </div>
+      {active && (
+        <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent" />
+      )}
+    </button>
   );
 }
