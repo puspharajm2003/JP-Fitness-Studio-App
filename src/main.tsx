@@ -48,7 +48,14 @@ function ConfigCheck({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-createRoot(document.getElementById("root")!).render(
+const rootElement = document.getElementById("root")!;
+let root = (window as any)._reactRoot;
+if (!root) {
+  root = createRoot(rootElement);
+  (window as any)._reactRoot = root;
+}
+
+root.render(
   <ErrorBoundary>
     <ConfigCheck>
       <App />

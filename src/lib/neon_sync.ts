@@ -14,71 +14,71 @@ export const NeonSync = {
    */
   async generateSqlDump() {
     try {
-      const [profiles, roles, packages, attendance, videos] = await Promise.all([
+      const [profiles, roles, packages, attendance, redemptions] = await Promise.all([
         supabase.from("profiles").select("*"),
         supabase.from("user_roles").select("*"),
         supabase.from("packages").select("*"),
         supabase.from("attendance").select("*"),
-        (supabase as any).from("workout_videos").select("*")
+        supabase.from("redemptions").select("*")
       ]);
 
-      let sql = `-- JP Fitness Studios Data Migration\n-- Exported on: ${new Date().toISOString()}\n\n`;
+      let sql = `-- JP Fitness Studios - Advanced Data Sync\n-- Timestamp: ${new Date().toISOString()}\n\n`;
+      sql += `BEGIN;\n\n`;
 
       // 1. Profiles
-      sql += `-- TABLE: profiles\n`;
+      sql += `-- SYNC: profiles\n`;
       profiles.data?.forEach(p => {
-        sql += `INSERT INTO profiles (id, full_name, phone, loyalty_points, goal, coach_phone, created_at) VALUES ('${p.id}', '${(p.full_name || "").replace(/'/g, "''")}', '${p.phone || ""}', ${p.loyalty_points || 0}, '${(p.goal || "").replace(/'/g, "''")}', ${p.coach_phone ? `'${p.coach_phone}'` : 'NULL'}, '${p.created_at}') ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, loyalty_points = EXCLUDED.loyalty_points;\n`;
+        sql += `INSERT INTO profiles (id, full_name, phone, loyalty_points, goal, target_weight_kg, daily_calorie_goal, daily_water_goal_ml, coach_phone, created_at) VALUES ('${p.id}', '${(p.full_name || "").replace(/'/g, "''")}', '${p.phone || ""}', ${p.loyalty_points || 0}, '${p.goal || "weight_loss"}', ${p.target_weight_kg || 'NULL'}, ${p.daily_calorie_goal || 2000}, ${p.daily_water_goal_ml || 2500}, ${p.coach_phone ? `'${p.coach_phone}'` : 'NULL'}, '${p.created_at}') ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, loyalty_points = EXCLUDED.loyalty_points, updated_at = NOW();\n`;
       });
       
-      // ... roles and packages logic remains similar but I'll ensure they match types
-      // (Simplified for brevity in the tool call but I'll include the full replacement if needed)
-      // I'll provide the full replacement to be safe.
-
       // 2. Roles
-      sql += `\n-- TABLE: user_roles\n`;
+      sql += `\n-- SYNC: user_roles\n`;
       roles.data?.forEach(r => {
         sql += `INSERT INTO user_roles (user_id, role) VALUES ('${r.user_id}', '${r.role}') ON CONFLICT (user_id, role) DO NOTHING;\n`;
       });
 
       // 3. Packages
-      sql += `\n-- TABLE: packages\n`;
+      sql += `\n-- SYNC: packages\n`;
       packages.data?.forEach(pkg => {
         sql += `INSERT INTO packages (id, user_id, name, price, status, start_date, end_date) VALUES ('${pkg.id}', '${pkg.user_id}', '${(pkg.name || "").replace(/'/g, "''")}', ${pkg.price || 0}, '${pkg.status}', '${pkg.start_date}', '${pkg.end_date}') ON CONFLICT (id) DO NOTHING;\n`;
       });
 
+      // 4. Attendance
+      sql += `\n-- SYNC: attendance\n`;
+      attendance.data?.forEach(att => {
+        sql += `INSERT INTO attendance (user_id, date) VALUES ('${att.user_id}', '${att.date}') ON CONFLICT (user_id, date) DO NOTHING;\n`;
+      });
+
+      // 5. Redemptions
+      sql += `\n-- SYNC: redemptions\n`;
+      redemptions.data?.forEach(red => {
+        sql += `INSERT INTO redemptions (id, user_id, reward_name, points_cost, redeemed_at) VALUES ('${red.id}', '${red.user_id}', '${(red.reward_name || "").replace(/'/g, "''")}', ${red.points_cost}, '${red.redeemed_at}') ON CONFLICT (id) DO NOTHING;\n`;
+      });
+
+      sql += `\nCOMMIT;\n`;
       return sql;
     } catch (err: any) {
-      console.error("Neon SQL Gen Error:", err);
+      console.error("Neon SQL Export Protocol Failure:", err);
+      toast.error("SQL Export failed");
       return null;
     }
   },
 
   /**
-   * Downloads the data as a JSON file for manual import into Neon console.
+   * Generates a direct SQL download for the administrator.
    */
-  async downloadJsonBackup() {
-    try {
-      const [profiles, roles, packages] = await Promise.all([
-        supabase.from("profiles").select("*"),
-        supabase.from("user_roles").select("*"),
-        supabase.from("packages").select("*")
-      ]);
+  async exportToNeon() {
+    const sql = await this.generateSqlDump();
+    if (!sql) return;
 
-      const merged = (profiles.data || []).map(p => ({
-        ...p,
-        user_roles: roles.data?.filter(r => r.user_id === p.id) || [],
-        packages: packages.data?.filter(pkg => pkg.user_id === p.id) || []
-      }));
-
-      const blob = new Blob([JSON.stringify(merged, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `JP_Studio_Backup_${new Date().toISOString().split('T')[0]}.json`;
-      link.click();
-      toast.success("JSON backup generated for Neon import");
-    } catch (err: any) {
-      toast.error("Backup failed: " + err.message);
-    }
+    const blob = new Blob([sql], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `JP_Studio_Neon_Migration_${new Date().toISOString().split('T')[0]}.sql`;
+    link.click();
+    toast.success("Neon Migration Script Ready", {
+      description: "Upload this script to the Neon SQL Console to sync data."
+    });
   }
 };
