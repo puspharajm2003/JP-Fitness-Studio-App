@@ -380,16 +380,39 @@ export default function Diet() {
       const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
       const openRouterKey = import.meta.env.VITE_OPENROUTER_API_KEY;
       
-      const detailedPrompt = `Analyze this food image and identify every food item visible. Return ONLY valid JSON:
+      const detailedPrompt = `Analyze the provided food image with high precision. 
+1. Identify the regional cuisine (e.g., Indian, Mediterranean, East Asian) to improve macro estimation.
+2. Carefully check for meat, seafood, or eggs. If the meal is a traditional vegetarian platter (like a Thali), do not assume meat is present.
+3. Quantify every visible component and estimate its weight/volume.
 
-{"name":"Meal Name","kcal":500,"protein_g":30,"carbs_g":50,"fat_g":20,"fiber_g":8,"serving_size":"1 plate","desc":"Description","vitamins":["A","C"],"minerals":["Iron"],"items":[{"name":"Rice","kcal":200,"protein_g":4,"carbs_g":45,"fat_g":1,"reasoning":"1 cup"},{"name":"Chicken","kcal":180,"protein_g":25,"carbs_g":0,"fat_g":8,"reasoning":"100g"},{"name":"Vegetables","kcal":50,"protein_g":2,"carbs_g":10,"fat_g":0,"reasoning":"1 cup mixed"}]}
+Return ONLY a valid JSON object following this exact schema:
+{
+  "name": "Specific Meal Name",
+  "kcal": total_calories,
+  "protein_g": total_protein,
+  "carbs_g": total_carbs,
+  "fat_g": total_fat,
+  "fiber_g": fiber,
+  "serving_size": "e.g., 1 large plate",
+  "desc": "Brief culinary description and dietary classification (Veg/Non-Veg)",
+  "vitamins": ["A", "C", etc],
+  "minerals": ["Iron", "Calcium", etc],
+  "items": [
+    {
+      "name": "Component Name",
+      "kcal": calories,
+      "protein_g": protein,
+      "carbs_g": carbs,
+      "fat_g": fat,
+      "reasoning": "Visual evidence (e.g., 1 cup cooked, 2 pieces)"
+    }
+  ]
+}
 
 Rules:
-- List EVERY food item you can identify
-- Assign realistic macros (rice ~130kcal/cup, chicken ~165kcal/100g, vegetables ~25-50kcal/cup)
-- Include at least 3-5 items in the items array
-- Use "items" key (required) with each food's name, kcal, protein_g, carbs_g, fat_g, reasoning
-- No markdown, no explanations, ONLY JSON`;
+- NO HALLUCINATIONS: Do not include items (like chicken) if they are not clearly visible.
+- ACCURACY: Use standard nutritional data for the identified cuisine.
+- OUTPUT: Return ONLY the JSON object. No markdown, no conversational text.`;
 
       let result: any = null;
       let parsedResult: { main: Partial<ScanResult>; items: ScanItem[] } | null = null;
