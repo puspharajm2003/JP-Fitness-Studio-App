@@ -264,13 +264,22 @@ export default function Profile() {
     window.open(`https://wa.me/${phone}`, "_blank");
   };
 
+  const filteredCoaches = useMemo(() => {
+    if (isSuperAdmin) return coaches; 
+    if (isAdmin) return coaches; 
+    if (isCoach) {
+      return coaches.filter(c => c.role === 'admin' || c.role === 'super_admin');
+    }
+    return coaches.filter(c => c.role === 'coach');
+  }, [coaches, isAdmin, isSuperAdmin, isCoach]);
+
   // Coach matching logic
   const matchCoachByName = (name: string) => {
     const normalized = name.trim().toLowerCase();
     if (!normalized) return undefined;
-    return coaches.find(c => c.full_name?.toLowerCase() === normalized) ||
-      coaches.find(c => c.full_name?.toLowerCase().startsWith(normalized)) ||
-      coaches.find(c => c.full_name?.toLowerCase().includes(normalized));
+    return filteredCoaches.find(c => c.full_name?.toLowerCase() === normalized) ||
+      filteredCoaches.find(c => c.full_name?.toLowerCase().startsWith(normalized)) ||
+      filteredCoaches.find(c => c.full_name?.toLowerCase().includes(normalized));
   };
 
   const onCoachNameChange = (name: string) => {
@@ -285,17 +294,6 @@ export default function Profile() {
 
   const coachExists = f.coach_name && matchCoachByName(f.coach_name) !== undefined;
   
-  const filteredCoaches = useMemo(() => {
-    if (isSuperAdmin) return coaches; // Super-admins see all
-    if (isAdmin) return coaches; // Admins see all
-    if (isCoach) {
-      // Coaches see Admins/Super-admins for support
-      return coaches.filter(c => c.role === 'admin' || c.role === 'super_admin');
-    }
-    // Regular members only see Coaches
-    return coaches.filter(c => c.role === 'coach');
-  }, [coaches, isAdmin, isSuperAdmin, isCoach]);
-
   // Unlock personal info editing for all users
   const canEditPersonalInfo = true;
 
@@ -497,22 +495,27 @@ export default function Profile() {
                     onChange={(v: any) => setF({ ...f, goal: v })}
                   />
                   
-                  {/* Coach Selection logic - Only show if editing */}
+                  {/* Coach Selection logic - Manual typing for safety */}
                   {isEditing && (
-                    <div className="space-y-2">
-                      <label className="block text-[10px] font-black uppercase text-muted-foreground tracking-widest ml-1">
-                        Coaching Support
-                      </label>
-                      <select
+                    <div className="space-y-2 relative">
+                      <Input
+                        label="Coaching Support (Type Name)"
+                        placeholder="Type your coach's name..."
                         value={f.coach_name || ""}
-                        onChange={(e) => onCoachNameChange(e.target.value)}
-                        className="w-full px-5 py-3.5 rounded-2xl bg-secondary border border-border/50 text-sm font-bold outline-none transition-all focus:ring-4 focus:ring-primary/10 hover:bg-secondary/80 appearance-none"
-                      >
-                        <option value="">Select a coach...</option>
-                        {filteredCoaches.map((c: any) => (
-                          <option key={c.id} value={c.full_name}>{c.full_name}</option>
-                        ))}
-                      </select>
+                        onChange={(v: string) => onCoachNameChange(v)}
+                        autoComplete="off"
+                        className={cn(
+                          coachExists ? "border-emerald-500 pr-10" : "border-border/50"
+                        )}
+                      />
+                      {coachExists && (
+                        <CheckCircle className="w-4 h-4 text-emerald-500 absolute right-4 bottom-4" />
+                      )}
+                      {!coachExists && f.coach_name && (
+                        <p className="text-[10px] text-amber-600 font-bold mt-1 ml-1 animate-pulse">
+                          {isCoach ? "Administrator match required" : "Verified Coach match required"}
+                        </p>
+                      )}
                     </div>
                   )}
               </div>
