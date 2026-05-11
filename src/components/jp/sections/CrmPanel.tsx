@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
@@ -10,6 +10,39 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import gsap from "gsap";
+import { useGSAP } from "@gsap/react";
+
+// Mobile Tab Item Component
+function MobileTab({ active, onClick, icon: Icon }: any) {
+  const iconRef = useRef<HTMLDivElement>(null);
+
+  useGSAP(() => {
+    if (active && iconRef.current) {
+      gsap.fromTo(iconRef.current, 
+        { scale: 0.5, rotate: -20, opacity: 0 },
+        { scale: 1, rotate: 0, opacity: 1, duration: 0.5, ease: "back.out(2)" }
+      );
+    }
+  }, [active]);
+
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "relative w-12 h-12 rounded-[1.5rem] flex items-center justify-center transition-all duration-500 overflow-hidden",
+        active ? "bg-white text-slate-950 shadow-xl scale-110" : "text-white/40 hover:text-white"
+      )}
+    >
+      <div ref={iconRef} className="relative z-10">
+        <Icon className={cn("w-5 h-5", active && "animate-pulse")} />
+      </div>
+      {active && (
+        <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent" />
+      )}
+    </button>
+  );
+}
 
 type Role = "member" | "coach" | "admin" | "super_admin";
 type Tab = "overview" | "members" | "points" | "coaches" | "audit" | "ai_assist";
@@ -206,7 +239,7 @@ export default function CrmPanel() {
     .sort((a, b) => b.assigned - a.assigned || a.name.localeCompare(b.name));
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col lg:flex-row overflow-hidden pb-24 lg:pb-0">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col lg:flex-row overflow-hidden">
       {/* Side Navigation - Desktop only */}
       <aside className="hidden lg:flex sticky top-0 h-screen w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 p-6 flex-col z-30">
         <div className="flex items-center gap-3 mb-10">
@@ -236,13 +269,10 @@ export default function CrmPanel() {
         </div>
       </aside>
 
-      {/* Mobile Floating Hub Navigation */}
-      <div className="lg:hidden fixed bottom-6 left-4 right-4 z-50">
-        <div className="glass-card bg-slate-950/90 dark:bg-slate-900/95 backdrop-blur-2xl rounded-[2.5rem] border border-white/10 p-2 shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center justify-between relative overflow-hidden">
-          {/* Animated Glow Background */}
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-transparent to-primary/10 animate-pulse pointer-events-none" />
-          
-          <div className="flex flex-1 items-center justify-around">
+      {/* Mobile Floating Hub Navigation - High Visibility Fix */}
+      <div className="lg:hidden fixed bottom-6 left-6 right-6 z-[100]">
+        <div className="bg-slate-950/95 backdrop-blur-3xl rounded-[2.5rem] border border-white/10 p-2 shadow-[0_20px_50px_rgba(0,0,0,0.6)] flex items-center justify-between relative">
+          <div className="flex flex-1 items-center justify-around gap-1">
             <MobileTab active={activeTab === "overview"} onClick={() => setActiveTab("overview")} icon={LayoutGrid} />
             <MobileTab active={activeTab === "members"} onClick={() => setActiveTab("members")} icon={Users2} />
             <MobileTab active={activeTab === "points"} onClick={() => setActiveTab("points")} icon={Award} />
@@ -252,14 +282,14 @@ export default function CrmPanel() {
 
           <div className="w-[1px] h-8 bg-white/10 mx-2" />
 
-          <Link to="/profile" className="w-12 h-12 rounded-[1.5rem] bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-white/10 transition-all group active:scale-90">
+          <Link to="/profile" className="w-12 h-12 rounded-[1.5rem] bg-white/10 border border-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all group active:scale-90">
              <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
           </Link>
         </div>
       </div>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-12 relative">
+      <main className="flex-1 overflow-y-auto p-6 md:p-8 lg:p-12 pb-32 lg:pb-12 relative">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.25em] text-primary mb-1">CRM PREMIUM V4</p>
@@ -707,25 +737,5 @@ function StatCard({ label, value, icon: Icon, trend, color }: any) {
       <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">{label}</p>
       <p className="font-display text-3xl font-black text-slate-900 dark:text-white leading-none">{value}</p>
     </div>
-  );
-}
-
-// Mobile Tab Item Component
-function MobileTab({ active, onClick, icon: Icon }: any) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "relative w-12 h-12 rounded-[1.5rem] flex items-center justify-center transition-all duration-500 overflow-hidden",
-        active ? "bg-white text-slate-950 shadow-xl scale-110" : "text-white/40 hover:text-white"
-      )}
-    >
-      <div className="relative z-10">
-        <Icon className={cn("w-5 h-5", active && "animate-pulse")} />
-      </div>
-      {active && (
-        <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent" />
-      )}
-    </button>
   );
 }
