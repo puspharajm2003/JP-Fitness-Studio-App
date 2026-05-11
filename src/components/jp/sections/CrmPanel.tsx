@@ -37,21 +37,29 @@ export default function CrmPanel() {
 
   const refresh = async () => {
     const monthAgo = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
-    const [m, p, a, r, rd] = await Promise.all([
-      supabase.from("profiles").select("id,full_name,phone,created_at,loyalty_points,goal,coach_id,coach_name").order("created_at", { ascending: false }),
+    const [mRes, pRes, aRes, rRes, rdRes, profilesFullRes] = await Promise.all([
+      supabase.from("profiles").select("id,full_name,phone,created_at,loyalty_points,goal").order("created_at", { ascending: false }),
       supabase.from("packages").select("user_id,name,price,status,end_date").eq("status", "active"),
       supabase.from("attendance").select("user_id,date").gte("date", monthAgo),
       supabase.from("user_roles").select("user_id, role"),
-      supabase.from("redemptions").select("*, profiles(full_name)").order("redeemed_at", { ascending: false }),
+      supabase.from("redemptions").select("*").order("redeemed_at", { ascending: false }),
+      supabase.from("profiles").select("id, full_name")
     ]);
-    setMembers(m.data || []);
-    setPkgs(p.data || []);
-    setAtt(a.data || []);
-    setRedemptions(rd.data || []);
+
+    const profileMap = new Map(profilesFullRes.data?.map(p => [p.id, p.full_name]) || []);
+    
+    setMembers(mRes.data || []);
+    setPkgs(pRes.data || []);
+    setAtt(aRes.data || []);
+    setRedemptions((rdRes.data || []).map(rd => ({
+      ...rd,
+      profiles: { full_name: profileMap.get(rd.user_id) }
+    })));
+    
     const map: Record<string, Role> = {};
-    (r.data || []).forEach((x: any) => { map[x.user_id] = x.role; });
+    (rRes.data || []).forEach((x: any) => { map[x.user_id] = x.role; });
     setRoles(map);
-    generateAiSuggestions(m.data || [], a.data || [], map);
+    generateAiSuggestions(mRes.data || [], aRes.data || [], map);
   };
 
   const generateAiSuggestions = (mem: any[], attendance: any[], roleMap: Record<string, Role>) => {

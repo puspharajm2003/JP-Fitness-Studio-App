@@ -6,12 +6,13 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { 
   ArrowLeft, Users, CalendarCheck, MessageCircle, BarChart3, 
   Trophy, Search, Filter, ChevronRight, UserCheck, 
-  TrendingUp, Activity, LayoutGrid, Settings, Star
+  TrendingUp, Activity, LayoutGrid, Settings, Star, Trash2,
+  Shield, Clock
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-type CoachTab = "overview" | "roster" | "activity";
+type CoachTab = "overview" | "roster" | "activity" | "library";
 
 export default function CoachCrmPanel() {
   const { user } = useAuth();
@@ -24,12 +25,16 @@ export default function CoachCrmPanel() {
   const [busy, setBusy] = useState(false);
   const [activeTab, setActiveTab] = useState<CoachTab>("overview");
   const [search, setSearch] = useState("");
+  const [profile, setProfile] = useState<any>(null);
 
   const refresh = async () => {
     if (!user) return;
     setBusy(true);
     try {
-      const { data: clientRows } = await supabase
+      const { data: coachProfile } = await (supabase as any).from("profiles").select("*").eq("id", user.id).single();
+      setProfile(coachProfile);
+
+      const { data: clientRows } = await (supabase as any)
         .from("profiles")
         .select("id,full_name,phone,goal,coach_id,coach_name,loyalty_points,created_at")
         .eq("coach_id", user.id)
@@ -114,6 +119,7 @@ export default function CoachCrmPanel() {
           <CoachNavItem active={activeTab === "overview"} onClick={() => setActiveTab("overview")} icon={LayoutGrid} label="Portfolio Stats" />
           <CoachNavItem active={activeTab === "roster"} onClick={() => setActiveTab("roster")} icon={Users} label="Client Roster" />
           <CoachNavItem active={activeTab === "activity"} onClick={() => setActiveTab("activity")} icon={Activity} label="Activity Logs" />
+          <CoachNavItem active={activeTab === "library"} onClick={() => setActiveTab("library")} icon={LayoutGrid} label="Workout Link" />
         </nav>
 
         <div className="mt-auto pt-6 border-t border-slate-100 dark:border-slate-800">
@@ -133,6 +139,7 @@ export default function CoachCrmPanel() {
               {activeTab === "overview" && "Executive Summary"}
               {activeTab === "roster" && "Client Directory"}
               {activeTab === "activity" && "Performance Logs"}
+              {activeTab === "library" && "Workout Link"}
             </h2>
           </div>
           
@@ -269,7 +276,23 @@ export default function CoachCrmPanel() {
             </div>
           </div>
         )}
+
+        {activeTab === "library" && (
+          <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="grid lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-1 glass-card p-8 rounded-[2.5rem] border-none shadow-xl">
+                <h3 className="font-display font-black text-xl mb-6">Deploy Protocol</h3>
+                <VideoUploadForm onUpload={() => refresh()} coachName={profile?.full_name} />
+              </div>
+              <div className="lg:col-span-2 glass-card p-8 rounded-[2.5rem] border-none shadow-xl">
+                <h3 className="font-display font-black text-xl mb-6">Active Library</h3>
+                <VideoList onUpdate={() => refresh()} />
+              </div>
+            </div>
+          </div>
+        )}
       </main>
+
     </div>
   );
 }
@@ -306,3 +329,131 @@ function CoachStatCard({ label, value, icon: Icon, color }: any) {
     </div>
   );
 }
+function VideoUploadForm({ coachName, onUpload }: { coachName: string; onUpload: () => void }) {
+  const [form, setForm] = useState({ title: "", url: "" });
+  const [busy, setBusy] = useState(false);
+
+  const getYoutubeId = (url: string) => {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  };
+
+  const videoId = getYoutubeId(form.url);
+
+  const handleSubmit = async (e: any) => {
+    e.preventDefault();
+    if (!form.title || !form.url) return;
+    setBusy(true);
+    // Coaches submit as 'pending'
+    const { error } = await (supabase as any).from("workout_videos").insert([{ 
+      ...form, 
+      status: "pending", 
+      coach_name: coachName 
+    }]);
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Protocol submitted for approval");
+      setForm({ title: "", url: "" });
+      onUpload();
+    }
+    setBusy(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Video Title</label>
+          <input 
+            value={form.title} 
+            onChange={e => setForm({...form, title: e.target.value})}
+            placeholder="e.g. Master Your Squat"
+            className="w-full px-5 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border-none font-bold text-sm outline-none focus:ring-2 focus:ring-emerald-500/20"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">YouTube URL</label>
+          <input 
+            value={form.url} 
+            onChange={e => setForm({...form, url: e.target.value})}
+            placeholder="https://youtube.com/..."
+            className="w-full px-5 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border-none font-bold text-sm outline-none focus:ring-2 focus:ring-emerald-500/20"
+          />
+        </div>
+
+        {videoId && (
+          <div className="rounded-2xl overflow-hidden aspect-video bg-black border border-white/10 shadow-lg">
+            <iframe
+              className="w-full h-full"
+              src={`https://www.youtube.com/embed/${videoId}`}
+              title="Preview"
+              allowFullScreen
+            />
+          </div>
+        )}
+
+        <button disabled={busy} className="w-full py-3 rounded-xl bg-emerald-600 text-white font-bold uppercase text-xs tracking-widest shadow-lg active:scale-95 transition-all">
+          {busy ? "Syncing..." : "Submit for Approval"}
+        </button>
+      </form>
+    </div>
+  );
+}
+;function VideoList({ onUpdate }: { onUpdate: () => void }) {
+  const [videos, setVideos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (supabase as any).from("workout_videos").select("*").order("created_at", { ascending: false })
+      .then(({ data }: any) => {
+        setVideos(data || []);
+        setLoading(false);
+      });
+  }, [onUpdate]);
+
+  const del = async (id: string) => {
+    const { error } = await (supabase as any).from("workout_videos").delete().eq("id", id);
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Video removed");
+      onUpdate();
+    }
+  };
+
+  if (loading) return <div className="py-20 text-center animate-pulse font-black text-slate-400 uppercase text-[10px] tracking-widest">Querying protocols...</div>;
+
+  return (
+    <div className="grid gap-4">
+      {videos.map(v => (
+        <div key={v.id} className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 group">
+          <div className="flex items-center gap-4">
+            <div className={cn(
+              "w-12 h-12 rounded-xl flex items-center justify-center",
+              v.status === "published" ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500"
+            )}>
+              {v.status === "published" ? <Shield className="w-6 h-6" /> : <Clock className="w-6 h-6" />}
+            </div>
+            <div>
+              <p className="font-bold text-sm leading-none mb-1.5">{v.title}</p>
+              <div className="flex items-center gap-2">
+                <span className={cn(
+                  "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider",
+                  v.status === "published" ? "bg-emerald-500 text-white" : "bg-amber-500 text-white"
+                )}>
+                  {v.status || "pending"}
+                </span>
+                <p className="text-[10px] text-muted-foreground font-medium truncate max-w-[150px]">{v.url}</p>
+              </div>
+            </div>
+          </div>
+          <button onClick={() => del(v.id)} className="p-2 text-slate-400 hover:text-rose-500 transition-colors">
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      ))}
+      {videos.length === 0 && <div className="py-10 text-center text-slate-400 text-sm font-medium">No videos in library.</div>}
+    </div>
+  );
+}
+;

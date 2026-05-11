@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/providers/AuthProvider";
 import { toast } from "sonner";
 import { Dumbbell, Mail, Lock, User, Phone } from "lucide-react";
-import logo from "/jp-logo.png";
+import logo from "/logo.png";
 
 export default function AuthPage() {
   const { user, loading } = useAuth();
@@ -57,22 +57,22 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md">
-        <div className="flex flex-col items-center mb-6">
-          <img src={logo} alt="JP Fitness Studio" width={72} height={72} className="w-18 h-18 drop-shadow-xl animate-float-y" />
-          <h1 className="mt-3 font-display font-extrabold text-3xl text-gradient-brand">JP Fitness Studio</h1>
-          <p className="text-sm text-muted-foreground">Train smart. Transform daily.</p>
+        <div className="flex flex-col items-center mb-6 text-center">
+          <img src={logo} alt="JP Fitness Studios" width={180} className="w-48 drop-shadow-xl animate-float-y" />
+          <h1 className="mt-6 font-display font-black text-4xl text-gradient-brand tracking-tight">JP Fitness Studios</h1>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em] font-black mt-2">Train Smart • Transform Daily</p>
         </div>
-        <div className="glass-card rounded-3xl p-6 md:p-8">
-          <div className="flex bg-secondary rounded-xl p-1 mb-6">
+        <div className="glass-card rounded-[2.5rem] p-8 md:p-10 shadow-premium">
+          <div className="flex bg-secondary rounded-2xl p-1 mb-8">
             {(["login","signup"] as const).map(m => (
               <button key={m} type="button" onClick={() => setMode(m)}
-                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${mode===m ? "bg-gradient-brand text-primary-foreground shadow-brand" : "text-muted-foreground"}`}>
+                className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${mode===m ? "bg-gradient-brand text-primary-foreground shadow-brand" : "text-muted-foreground"}`}>
                 {m === "login" ? "Sign In" : "Sign Up"}
               </button>
             ))}
           </div>
 
-          <form onSubmit={submit} className="space-y-3">
+          <form onSubmit={submit} className="space-y-4">
             {mode === "signup" && (
               <>
                 <Field icon={User} placeholder="Full name" value={name} onChange={setName} required />
@@ -82,13 +82,13 @@ export default function AuthPage() {
             <Field icon={Mail} type="email" placeholder="Email" value={email} onChange={setEmail} required />
             <Field icon={Lock} type="password" placeholder="Password" value={password} onChange={setPassword} required />
 
-            <button disabled={busy} className="w-full py-3 rounded-xl bg-gradient-brand text-primary-foreground font-semibold shadow-brand hover:opacity-95 transition-opacity flex items-center justify-center gap-2 disabled:opacity-60">
+            <button disabled={busy} className="w-full py-4 rounded-2xl bg-gradient-brand text-primary-foreground font-black text-xs uppercase tracking-widest shadow-brand hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-60 flex items-center justify-center gap-2">
               <Dumbbell className="w-4 h-4" />
-              {busy ? "Please wait…" : mode === "login" ? "Enter Studio" : "Create Account"}
+              {busy ? "Entering Studio..." : mode === "login" ? "Enter Studio" : "Begin Transformation"}
             </button>
           </form>
-          <p className="text-xs text-muted-foreground text-center mt-5">
-            By continuing you agree to JP Fitness Studio terms & wellness disclaimer.
+          <p className="text-[10px] text-muted-foreground text-center mt-8 font-bold uppercase tracking-widest leading-relaxed">
+            By continuing you agree to JP Fitness Studios<br/>terms & wellness disclaimer.
           </p>
         </div>
       </div>

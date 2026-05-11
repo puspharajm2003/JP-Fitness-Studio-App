@@ -29,16 +29,20 @@ export default function AdminAttendance() {
   const load = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("attendance")
-        .select(`
-          *,
-          profiles:user_id (full_name, email)
-        `)
-        .order("created_at", { ascending: false });
+      const [attRes, profilesRes] = await Promise.all([
+        supabase.from("attendance").select("*").order("created_at", { ascending: false }),
+        supabase.from("profiles").select("id, full_name")
+      ]);
 
-      if (error) throw error;
-      setLogs(data || []);
+      if (attRes.error) throw attRes.error;
+
+      const profileMap = new Map(profilesRes.data?.map(p => [p.id, p]) || []);
+      const merged = (attRes.data || []).map(att => ({
+        ...att,
+        profiles: profileMap.get(att.user_id)
+      }));
+
+      setLogs(merged);
     } catch (err: any) {
       toast.error(err.message);
     } finally {

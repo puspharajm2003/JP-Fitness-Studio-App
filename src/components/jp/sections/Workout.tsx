@@ -192,23 +192,8 @@ export default function Workout() {
                   style={{ width: `${sleepScore}%` }}
                 />
               </div>
-
-              {sleepData.length > 0 && (
-                <div className="mt-8 pt-8 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Moon className="w-5 h-5 text-slate-400" />
-                    <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Recent Sleep cycle</span>
-                  </div>
-                  <div className="flex gap-1.5">
-                    {sleepData.map((s, i) => (
-                      <div key={i} className="px-2 py-1 bg-slate-100 dark:bg-white/5 rounded-lg text-[9px] font-black text-slate-900 dark:text-white">
-                        {s.hours}h
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </GlassCard>
+
 
             <div className="grid grid-cols-2 gap-4 workout-animate">
               {allGroups.map(g => {
@@ -394,5 +379,68 @@ function AddExercise({onAdd}:{onAdd:(n:string)=>void}) {
         Add
       </button>
     </form>
+  );
+}
+function WorkoutVideos() {
+  const [videos, setVideos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (supabase as any).from("workout_videos")
+      .select("*")
+      .eq("status", "published")
+      .order("created_at", { ascending: false })
+      .then(({ data }: any) => {
+        setVideos(data || []);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return null;
+  if (videos.length === 0) return null;
+
+  return (
+    <div className="space-y-6 workout-animate">
+      <div className="flex items-center justify-between px-2">
+        <h3 className="text-xl font-black uppercase tracking-widest text-slate-400">Video Protocol Library</h3>
+        <Sparkles className="w-5 h-5 text-primary animate-pulse" />
+      </div>
+      <div className="grid md:grid-cols-2 gap-8">
+        {videos.map((vid) => {
+          // Extract YouTube ID
+          let videoId = "";
+          try {
+            const url = new URL(vid.url);
+            if (url.hostname === "youtu.be") videoId = url.pathname.slice(1);
+            else if (url.hostname.includes("youtube.com")) videoId = url.searchParams.get("v") || "";
+          } catch(e) {}
+
+          return (
+            <GlassCard key={vid.id} className="p-0 overflow-hidden group">
+              <div className="aspect-video bg-slate-900 relative">
+                {videoId ? (
+                  <iframe 
+                    className="w-full h-full"
+                    src={`https://www.youtube.com/embed/${videoId}`}
+                    title={vid.title}
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-white/20">
+                    Invalid Video Source
+                  </div>
+                )}
+              </div>
+              <div className="p-6">
+                <h4 className="text-xl font-black text-slate-900 dark:text-white mb-1">{vid.title}</h4>
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary">Assigned by {vid.coach_name || "Admin"}</p>
+              </div>
+            </GlassCard>
+          );
+        })}
+      </div>
+    </div>
   );
 }

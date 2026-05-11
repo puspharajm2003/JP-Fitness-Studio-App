@@ -29,16 +29,20 @@ export default function AdminPayments() {
   const load = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("packages")
-        .select(`
-          *,
-          profiles:user_id (full_name, email)
-        `)
-        .order("created_at", { ascending: false });
+      const [packagesRes, profilesRes] = await Promise.all([
+        supabase.from("packages").select("*").order("created_at", { ascending: false }),
+        supabase.from("profiles").select("id, full_name")
+      ]);
 
-      if (error) throw error;
-      setPayments(data || []);
+      if (packagesRes.error) throw packagesRes.error;
+
+      const profileMap = new Map(profilesRes.data?.map(p => [p.id, p]) || []);
+      const merged = (packagesRes.data || []).map(pkg => ({
+        ...pkg,
+        profiles: profileMap.get(pkg.user_id)
+      }));
+
+      setPayments(merged);
     } catch (err: any) {
       toast.error(err.message);
     } finally {

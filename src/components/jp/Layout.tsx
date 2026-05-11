@@ -7,10 +7,18 @@ import { useTheme, themes } from "@/providers/ThemeProvider";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { usePWAInstall } from "@/hooks/usePWAInstall";
 import { useProfile } from "@/lib/useProfile";
-import logo from "/jp-logo.png";
+import logo from "/logo.png";
+import icon from "/icon.png";
 import { Home, ClipboardCheck, Scale, Apple, Dumbbell, Award, Pill, User, GlassWater, Activity as ActivityIcon, Calculator } from "lucide-react";
 
-export const navItems = [
+export interface NavItem {
+  to: string;
+  label: string;
+  icon: any;
+  onClick?: () => void;
+}
+
+export const navItems: NavItem[] = [
   { to: "/", label: "Home", icon: Home },
   { to: "/attendance", label: "Attendance", icon: ClipboardCheck },
   { to: "/progress", label: "Progress", icon: Scale },
@@ -39,12 +47,12 @@ export default function Layout({ children }: { children: ReactNode }) {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   // Admin nav items
-  const adminNav = isAdmin ? [
+  const adminNav: NavItem[] = isAdmin ? [
     { to: "/admin/setup", label: "Admin Setup", icon: Settings },
   ] : [];
 
   // Bottom nav includes main items plus admin items for mobile
-  const bottomNavItems = [
+  const bottomNavItems: NavItem[] = [
     ...navItems.filter(i => ["/", "/progress", "/workout", "/diet"].includes(i.to)),
     { to: "#", label: "More", icon: Settings, onClick: () => setShowMoreMenu(true) },
   ];
@@ -65,10 +73,10 @@ export default function Layout({ children }: { children: ReactNode }) {
       {/* Sidebar (desktop) */}
       <aside className="hidden lg:flex sticky top-0 h-screen w-64 flex-col border-r border-border bg-card/70 backdrop-blur px-4 py-6 z-30">
         <Link to="/" className="flex items-center gap-2.5 mb-8 px-2">
-          <img src={logo} alt="JP" width={42} height={42} className="w-10 h-10 drop-shadow" />
+          <img src={icon} alt="JP" width={42} height={42} className="w-10 h-10 drop-shadow" />
           <div>
             <div className="font-display font-extrabold text-lg leading-none text-gradient-brand">JP Fitness</div>
-            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mt-1">Studio</div>
+            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mt-1">Studios</div>
           </div>
         </Link>
         <nav className="flex-1 space-y-1">
@@ -93,8 +101,8 @@ export default function Layout({ children }: { children: ReactNode }) {
         <header className="sticky top-0 z-20 backdrop-blur-xl bg-background/70 border-b border-border">
           <div className="flex items-center justify-between px-4 md:px-8 py-3">
             <div className="flex items-center gap-2 lg:hidden">
-              <img src={logo} width={36} height={36} className="w-9 h-9" alt="JP" />
-              <span className="font-display font-extrabold text-gradient-brand">JP Fitness</span>
+              <img src={icon} width={36} height={36} className="w-9 h-9" alt="JP" />
+              <span className="font-display font-extrabold text-gradient-brand leading-none">JP Fitness<br/><span className="text-[8px] uppercase tracking-widest text-muted-foreground">Studios</span></span>
             </div>
             <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary border border-border w-72">
               <Search className="w-4 h-4 text-muted-foreground" />
@@ -167,11 +175,11 @@ export default function Layout({ children }: { children: ReactNode }) {
             </button>
             <div className="relative flex items-center gap-3">
               <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center shrink-0">
-                <img src={logo} alt="JP" className="w-8 h-8 rounded-lg" />
+                <img src={icon} alt="JP" className="w-8 h-8 rounded-lg" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-white font-bold text-sm">Install JP Fitness</p>
-                <p className="text-white/70 text-xs mt-0.5">Get faster access & offline support</p>
+                <p className="text-white font-bold text-sm">Install JP Fitness Studios</p>
+                <p className="text-white/70 text-xs mt-0.5">Premium training at your fingertips</p>
               </div>
               <button
                 onClick={handleInstall}
@@ -242,7 +250,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           {bottomNavItems.map(it => {
             const Icon = it.icon;
             const active = loc.pathname === it.to;
-            const isMore = it.label === "More";
+            const isMore = !!it.onClick;
             
             const content = (
               <>

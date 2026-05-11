@@ -28,17 +28,34 @@ export default function AdminMembers() {
   const load = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select(`
-          *,
-          user_roles (role),
-          packages (status, end_date)
-        `)
-        .order("created_at", { ascending: false });
+      // Fetch separately to avoid relationship schema cache errors
+      const [profilesRes, rolesRes, packagesRes] = await Promise.all([
+        supabase.from("profiles").select("*").order("created_at", { ascending: false }),
+        supabase.from("user_roles").select("user_id, role"),
+        supabase.from("packages").select("user_id, status, end_date")
+      ]);
 
-      if (error) throw error;
-      setMembers(data || []);
+      if (profilesRes.error) throw profilesRes.error;
+
+      const rolesMap = new Map();
+      rolesRes.data?.forEach(r => {
+        if (!rolesMap.has(r.user_id)) rolesMap.set(r.user_id, []);
+        rolesMap.get(r.user_id).push(r);
+      });
+
+      const packagesMap = new Map();
+      packagesRes.data?.forEach(p => {
+        if (!packagesMap.has(p.user_id)) packagesMap.set(p.user_id, []);
+        packagesMap.get(p.user_id).push(p);
+      });
+
+      const merged = (profilesRes.data || []).map(p => ({
+        ...p,
+        user_roles: rolesMap.get(p.id) || [],
+        packages: packagesMap.get(p.id) || []
+      }));
+
+      setMembers(merged);
     } catch (err: any) {
       toast.error(err.message);
     } finally {

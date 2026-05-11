@@ -3,7 +3,7 @@ import { useAuth } from "@/providers/AuthProvider";
 import {
   Bell, BellRing, Settings, Droplet, Pill, Save, CheckCircle, AlertTriangle,
   Clock, Info, Zap, Shield, Volume2, VolumeX, Timer, Waves, Sparkles,
-  ArrowRight, ChevronDown, Award
+  ArrowRight, ChevronDown, Award, Moon
 } from "lucide-react";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
@@ -16,6 +16,7 @@ interface NotiSettings {
   med_enabled: boolean;
   med_interval: number;
   loyalty_enabled: boolean;
+  sleep_enabled: boolean;
   permission_granted: boolean;
   onboarding_dismissed: boolean;
 }
@@ -69,6 +70,7 @@ export default function Notifications() {
     med_enabled: true,
     med_interval: 8,
     loyalty_enabled: true,
+    sleep_enabled: true,
     permission_granted: false,
     onboarding_dismissed: false,
   });
@@ -226,6 +228,36 @@ export default function Notifications() {
     medsTakenToday,
   ]);
 
+  // Sleep reminder logic
+  useEffect(() => {
+    if (!settings.sleep_enabled || !settings.permission_granted) return;
+
+    const id = setInterval(() => {
+      const bedTime = localStorage.getItem("bedTime");
+      if (!bedTime) return;
+
+      const now = new Date();
+      const currentH = now.getHours();
+      const currentM = now.getMinutes();
+
+      const [bH, bM] = bedTime.split(":").map(Number);
+      
+      if (currentH === bH && currentM === bM) {
+         const lastNotified = localStorage.getItem("lastSleepNoti");
+         const todayDate = now.toLocaleDateString();
+         if (lastNotified !== todayDate) {
+            new Notification("🌙 Time to Sleep!", {
+              body: `Your scheduled bed time (${bedTime}) has arrived. Put down your device and get some rest!`,
+              icon: "/jp-logo.png",
+            });
+            localStorage.setItem("lastSleepNoti", todayDate);
+         }
+      }
+    }, 60000);
+
+    return () => clearInterval(id);
+  }, [settings.sleep_enabled, settings.permission_granted]);
+
   // Calculate next reminder time
   const getNextReminderTime = (intervalHours: number) => {
     const now = new Date();
@@ -375,6 +407,30 @@ export default function Notifications() {
              <p className="text-[10px] bg-emerald-50 dark:bg-emerald-900/10 p-2 rounded-lg text-emerald-700 dark:text-emerald-400 border border-emerald-200/50">
                Reminds you to check in daily and claim your 10 loyalty points when near the gym.
              </p>
+          )}
+        </div>
+
+        {/* Sleep Reminder */}
+        <div className="glass-card rounded-2xl p-5 space-y-4 border border-indigo-500/10">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/20 flex items-center justify-center">
+                <Moon className="w-5 h-5 text-indigo-600" />
+              </div>
+              <div>
+                <p className="text-sm font-bold">Sleep Time Alert</p>
+                <p className="text-[10px] text-muted-foreground">Alerts you at your set Bed Time</p>
+              </div>
+            </div>
+            <Switch checked={settings.sleep_enabled} onCheckedChange={(v) => saveSettings({ sleep_enabled: v })} />
+          </div>
+          {settings.sleep_enabled && (
+             <div className="flex justify-between items-center bg-indigo-50 dark:bg-indigo-900/10 p-3 rounded-xl border border-indigo-200/50">
+                <span className="text-xs font-bold text-indigo-700 dark:text-indigo-400">Current Bed Time:</span>
+                <span className="text-sm font-black text-indigo-900 dark:text-indigo-200">
+                  {localStorage.getItem("bedTime") || "Not set (Go to Activity)"}
+                </span>
+             </div>
           )}
         </div>
       </div>

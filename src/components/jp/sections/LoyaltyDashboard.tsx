@@ -49,16 +49,20 @@ export default function LoyaltyDashboard() {
           .order("created_at", { ascending: true });
         
         if (error) {
-          if (error.code === 'PGRST116' || error.message.includes('not found')) {
-            console.warn("loyalty_point_logs table missing.");
+          // Silent fail for missing table (404) or specific PGRST errors
+          if (error.code === 'PGRST116' || error.message.includes('not found') || (error as any).status === 404) {
+            console.warn("Loyalty ledger offline or not yet initialized.");
             setPointLogs([]);
             return;
           }
           throw error;
         }
         setPointLogs(data || []);
-      } catch (err) {
-        console.error("Loyalty load error:", err);
+      } catch (err: any) {
+        // Only log if it's not a expected 404/missing table issue
+        if (err.status !== 404) {
+          console.error("Loyalty system sync error:", err);
+        }
       }
     };
     load();

@@ -192,6 +192,7 @@ export default function Diet() {
   const [scanFile, setScanFile] = useState<File | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
+  const [scanItems, setScanItems] = useState<ScanItem[]>([]);
   const [scanMealTime, setScanMealTime] = useState("Lunch");
   const [showManualFallback, setShowManualFallback] = useState(false);
   const [manualFood, setManualFood] = useState<ScanResult>({
@@ -199,6 +200,7 @@ export default function Diet() {
   });
   const [aiTip, setAiTip] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"diary" | "analytics" | "plans">("diary");
+  const [analysisStage, setAnalysisStage] = useState<string>("idle");
 
   // Refs
   const scanInputRef = useRef<HTMLInputElement>(null);
@@ -253,10 +255,122 @@ export default function Diet() {
     }
   }, [activeTab]);
 
+  const resetScanner = () => { setShowScanner(false); setScanImage(null); setScanFile(null); setScanResult(null); setScanItems([]); setShowManualFallback(false); setAnalysisStage("idle"); };
+
+  const parseFoodResponse = (text: string): { main: Partial<ScanResult>; items: ScanItem[] } | null => {
+    try {
+      let cleaned = text.replace(/```json|```/g, "").replace(/```/g, "").trim();
+      
+      let startIdx = cleaned.indexOf('{');
+      let endIdx = cleaned.lastIndexOf('}');
+      
+      if (startIdx === -1 || endIdx === -1 || startIdx > endIdx) {
+        const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          cleaned = jsonMatch[0];
+        } else {
+          console.error("No JSON object found in response:", text.substring(0, 500));
+          return null;
+        }
+      } else {
+        cleaned = cleaned.substring(startIdx, endIdx + 1);
+      }
+      
+      const parsed = JSON.parse(cleaned);
+      console.log("Parsed JSON:", JSON.stringify(parsed).substring(0, 1000));
+      
+      const getNum = (obj: any, ...keys: string[]): number => {
+        for (const key of keys) {
+          if (obj[key] !== undefined && obj[key] !== null) {
+            const val = Number(obj[key]);
+            if (!isNaN(val)) return val;
+          }
+        }
+        return 0;
+      };
+      
+      const main: Partial<ScanResult> = {
+        name: parsed.name || parsed.dish_name || parsed.dishName || parsed.meal_name || "Mixed Meal",
+        kcal: getNum(parsed, 'kcal', 'calories', 'total_calories', 'totalKcal', 'energy'),
+        protein_g: getNum(parsed, 'protein_g', 'protein', 'protein_g_calculated', 'total_protein'),
+        carbs_g: getNum(parsed, 'carbs_g', 'carbs', 'carbohydrates', 'total_carbs', 'carb'),
+        fat_g: getNum(parsed, 'fat_g', 'fat', 'total_fat'),
+        fiber_g: getNum(parsed, 'fiber_g', 'fiber'),
+        serving_size: parsed.serving_size || parsed.servingSize || parsed.serving || parsed.portion || "1 plate",
+        desc: parsed.desc || parsed.description || parsed.analysis || parsed.summary || "",
+        vitamins: Array.isArray(parsed.vitamins) ? parsed.vitamins : [],
+        minerals: Array.isArray(parsed.minerals) ? parsed.minerals : [],
+        confidence: Number(parsed.confidence) || 0.85,
+      };
+
+      console.log("Main result:", main);
+
+      const rawItems = parsed.items || parsed.foods || parsed.components || parsed.detected_foods || 
+                       parsed.food_items || parsed.dishes || parsed.food_items_list || parsed.identified_items || [];
+      console.log("Raw items count:", rawItems.length, "Raw:", JSON.stringify(rawItems).substring(0, 500));
+      
+      if (!Array.isArray(rawItems)) {
+        console.warn("Items is not an array, treating as empty");
+        return { main, items: [] };
+      }
+      
+      const items: ScanItem[] = rawItems.map((item: any, idx: number) => {
+        const itemKcal = getNum(item, 'kcal', 'calories', 'cal');
+        const itemProtein = getNum(item, 'protein_g', 'protein');
+        const itemCarbs = getNum(item, 'carbs_g', 'carbs', 'carbohydrates');
+        const itemFat = getNum(item, 'fat_g', 'fat');
+        
+        return {
+          name: item.name || item.food_name || item.foodName || item.food || item.title || `Food ${idx + 1}`,
+          kcal: itemKcal,
+          protein: itemProtein,
+          carbs: itemCarbs,
+          fat: itemFat,
+          confidence: Number(item.confidence) || 0.8,
+          reasoning: item.reasoning || item.notes || item.description || item.portion || "",
+        };
+      });
+
+      console.log("Parsed items:", items);
+      
+      if (items.length > 0 && main.kcal === 0) {
+        main.kcal = items.reduce((sum, i) => sum + (i.kcal || 0), 0);
+        main.protein_g = items.reduce((sum, i) => sum + (i.protein || 0), 0);
+        main.carbs_g = items.reduce((sum, i) => sum + (i.carbs || 0), 0);
+        main.fat_g = items.reduce((sum, i) => sum + (i.fat || 0), 0);
+        console.log("Calculated totals from items:", main.kcal, main.protein_g, main.carbs_g, main.fat_g);
+      }
+      
+      return { main, items };
+    } catch (e) {
+      console.error("JSON Parse Error:", e, "Response:", text.substring(0, 500));
+      return null;
+    }
+  };
+
+  const generateFallbackResult = (): ScanResult => {
+    return {
+      name: "Analyzed Meal",
+      kcal: 350,
+      protein_g: 25,
+      carbs_g: 40,
+      fat_g: 12,
+      fiber_g: 5,
+      serving_size: "1 plate",
+      desc: "Nutritional analysis completed based on visual portion estimation",
+      vitamins: [],
+      minerals: [],
+      items: []
+    };
+  };
+
   const analyzeFoodImage = async () => {
     if (!scanFile) return;
     setScanning(true);
     setShowManualFallback(false);
+    setScanResult(null);
+    setScanItems([]);
+    
     try {
       const base64 = await new Promise<string>((resolve) => {
         const reader = new FileReader(); reader.onload = () => resolve((reader.result as string).split(",")[1]);
@@ -265,20 +379,37 @@ export default function Diet() {
       
       const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
       const openRouterKey = import.meta.env.VITE_OPENROUTER_API_KEY;
-      const prompt = `Analyze this food image. Provide name, kcal, protein_g, carbs_g, fat_g, vitamins, minerals, and serving_size. Return ONLY valid JSON in this format: {"name": "", "kcal": 0, "protein_g": 0, "carbs_g": 0, "fat_g": 0, "vitamins": [], "minerals": [], "desc": ""}`;
       
-      let result;
+      const detailedPrompt = `Analyze this food image and identify every food item visible. Return ONLY valid JSON:
 
-      // 1. Try Direct Gemini First (Best Results)
+{"name":"Meal Name","kcal":500,"protein_g":30,"carbs_g":50,"fat_g":20,"fiber_g":8,"serving_size":"1 plate","desc":"Description","vitamins":["A","C"],"minerals":["Iron"],"items":[{"name":"Rice","kcal":200,"protein_g":4,"carbs_g":45,"fat_g":1,"reasoning":"1 cup"},{"name":"Chicken","kcal":180,"protein_g":25,"carbs_g":0,"fat_g":8,"reasoning":"100g"},{"name":"Vegetables","kcal":50,"protein_g":2,"carbs_g":10,"fat_g":0,"reasoning":"1 cup mixed"}]}
+
+Rules:
+- List EVERY food item you can identify
+- Assign realistic macros (rice ~130kcal/cup, chicken ~165kcal/100g, vegetables ~25-50kcal/cup)
+- Include at least 3-5 items in the items array
+- Use "items" key (required) with each food's name, kcal, protein_g, carbs_g, fat_g, reasoning
+- No markdown, no explanations, ONLY JSON`;
+
+      let result: any = null;
+      let parsedResult: { main: Partial<ScanResult>; items: ScanItem[] } | null = null;
+      setAnalysisStage("initializing");
+
       if (geminiKey && geminiKey.length > 5) {
         try {
+          setAnalysisStage("analyzing");
           const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
+              generationConfig: {
+                temperature: 0.1,
+                topP: 0.9,
+                maxOutputTokens: 8192,
+              },
               contents: [{
                 parts: [
-                  { text: prompt },
+                  { text: detailedPrompt },
                   { inline_data: { mime_type: scanFile.type, data: base64 } }
                 ]
               }]
@@ -287,85 +418,139 @@ export default function Diet() {
           
           if (response.ok) {
             const data = await response.json();
-            const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-            result = JSON.parse(text.replace(/```json|```/g, "").trim());
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            console.log("Gemini response:", text.substring(0, 500));
+            if (text) {
+              parsedResult = parseFoodResponse(text);
+              if (parsedResult && parsedResult.main.kcal > 0) {
+                result = parsedResult.main;
+              }
+            }
           } else {
-            const errBody = await response.json();
-            console.error("Direct Gemini Error Response:", errBody);
+            console.error("Gemini API error:", response.status, await response.text());
           }
         } catch (e) {
-          console.error("Direct Gemini Network/CORS Error:", e);
+          console.error("Gemini Error:", e);
         }
       }
 
-      // 2. Fallback to OpenRouter with requested fast models
-      if (!result && openRouterKey) {
-        const models = [
-          "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
-          "inclusionai/ring-2.6-1t:free",
-          "poolside/laguna-xs.2:free"
-        ];
+      if (!result) {
+        setAnalysisStage("identifying");
+        
+        if (openRouterKey) {
+          const models = [
+            "google/gemini-flash-1.5",
+            "google/gemini-flash-1.5-8b",
+            "meta-llama/llama-3.2-11b-vision-instruct",
+            "anthropic/claude-3-haiku",
+            "qwen/qwen-vl-plus:free"
+          ];
 
-        let lastModelError = null;
-        for (const model of models) {
-          try {
-            console.log(`Attempting analysis with model: ${model}`);
-            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${openRouterKey}`,
-                "HTTP-Referer": window.location.origin,
-                "X-Title": "JP Fitness Studio App"
-              },
-              body: JSON.stringify({
-                model: model,
-                messages: [
-                  {
-                    role: "user",
-                    content: [
-                      { type: "text", text: prompt },
-                      { type: "image_url", image_url: { url: `data:${scanFile.type};base64,${base64}` } }
-                    ]
+          for (const model of models) {
+            try {
+              setAnalysisStage("calculating");
+              const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${openRouterKey}`,
+                  "HTTP-Referer": window.location.origin,
+                  "X-Title": "JP Fitness Studio App"
+                },
+                body: JSON.stringify({
+                  model: model,
+                  messages: [
+                    {
+                      role: "user",
+                      content: [
+                        { type: "text", text: detailedPrompt },
+                        { type: "image_url", image_url: { url: `data:${scanFile.type};base64,${base64}` } }
+                      ]
+                    }
+                  ],
+                  max_tokens: 4096,
+                  temperature: 0.1,
+                })
+              });
+
+              if (response.ok) {
+                const data = await response.json();
+                const content = data.choices?.[0]?.message?.content || "";
+                console.log(`OpenRouter ${model} response:`, content.substring(0, 500));
+                if (content) {
+                  parsedResult = parseFoodResponse(content);
+                  if (parsedResult && parsedResult.main.kcal > 0) {
+                    result = parsedResult.main;
+                    break;
                   }
-                ],
-                response_format: { type: "json_object" }
-              })
-            });
-
-            if (response.ok) {
-              const data = await response.json();
-              result = JSON.parse(data.choices[0].message.content);
-              if (result) {
-                console.log(`Success with model: ${model}`);
-                break;
+                }
               }
-            } else {
-              const errBody = await response.json();
-              console.error(`OpenRouter Error (${model}):`, errBody);
-              lastModelError = errBody;
+            } catch (e) {
+              console.error(`Model ${model} failed:`, e);
             }
-          } catch (e) {
-            console.error(`OpenRouter Network Error (${model}):`, e);
-            lastModelError = e;
           }
         }
-        
-        if (!result && lastModelError) {
-          throw new Error(`OpenRouter failed across all fast models. Last error: ${JSON.stringify(lastModelError)}`);
-        }
       }
 
-      if (!result) throw new Error("AI analysis could not be completed. Check console for details.");
+      setAnalysisStage("finalizing");
 
-      setScanResult(result);
-      toast.success(`Scan Complete: ${result.name} detected! ✨`);
+      console.log("Final processing - result:", result ? JSON.stringify(result).substring(0, 500) : "null", "parsedResult:", parsedResult ? JSON.stringify(parsedResult).substring(0, 500) : "null");
+
+      let finalResult: ScanResult;
+
+      if (result && parsedResult) {
+        finalResult = {
+          name: result.name || "Mixed Meal",
+          kcal: Math.max(0, result.kcal || 0),
+          protein_g: Math.max(0, result.protein_g || 0),
+          carbs_g: Math.max(0, result.carbs_g || 0),
+          fat_g: Math.max(0, result.fat_g || 0),
+          fiber_g: result.fiber_g || 0,
+          serving_size: result.serving_size || "1 plate",
+          desc: result.desc || "",
+          vitamins: result.vitamins || [],
+          minerals: result.minerals || [],
+          items: []
+        };
+
+        if (parsedResult.items && parsedResult.items.length > 0) {
+          finalResult.items = parsedResult.items.map((item, idx) => ({
+            name: item.name || `Food ${idx + 1}`,
+            kcal: Math.max(0, item.kcal || 0),
+            protein: Math.max(0, item.protein || 0),
+            carbs: Math.max(0, item.carbs || 0),
+            fat: Math.max(0, item.fat || 0),
+            reasoning: item.reasoning || ""
+          }));
+          
+          if (finalResult.kcal === 0) {
+            finalResult.kcal = (finalResult.items || []).reduce((sum, i) => sum + i.kcal, 0);
+            finalResult.protein_g = (finalResult.items || []).reduce((sum, i) => sum + i.protein, 0);
+            finalResult.carbs_g = (finalResult.items || []).reduce((sum, i) => sum + i.carbs, 0);
+            finalResult.fat_g = (finalResult.items || []).reduce((sum, i) => sum + i.fat, 0);
+          }
+        }
+      } else {
+        throw new Error("Image analysis failed or returned invalid data. Please use manual entry.");
+      }
+      
+      console.log("Final result to display:", JSON.stringify(finalResult).substring(0, 800));
+      setScanResult(finalResult);
+      setScanItems(finalResult.items || []);
+
+      const itemCount = (finalResult.items || []).length;
+      if (itemCount > 0) {
+        toast.success(`Detected ${itemCount} item${itemCount !== 1 ? 's' : ''}: ${finalResult.name}`);
+      } else {
+        toast.warning(`No items detected. Try a clearer photo.`);
+      }
     } catch (err: any) {
-      console.error("Critical Analysis Error:", err);
-      toast.error(`AI Analysis failed: ${err.message}`);
+      console.error("Analysis Error:", err);
+      toast.error(err.message || "Analysis failed. Try again.");
       setShowManualFallback(true);
     } finally {
       setScanning(false);
+      setAnalysisStage("idle");
     }
   };
 
@@ -383,8 +568,6 @@ export default function Diet() {
     if (error) toast.error(error.message);
     else { toast.success("Food added to diary"); loadData(); resetScanner(); }
   };
-
-  const resetScanner = () => { setShowScanner(false); setScanImage(null); setScanFile(null); setScanResult(null); setShowManualFallback(false); };
 
   const deleteFood = async (id: string) => {
     await supabase.from("food_logs").delete().eq("id", id);
@@ -841,15 +1024,26 @@ export default function Diet() {
                       <>
                         <img src={scanImage} alt="Preview" className="w-full h-full object-cover" />
                         {scanning && (
-                          <div className="absolute inset-0 bg-slate-900/80 flex flex-col items-center justify-center backdrop-blur-sm">
-                            <div className="w-20 h-20 border-4 border-[hsl(var(--brand-1))] border-t-transparent rounded-full animate-spin mb-4" />
-                            <p className="text-white font-black text-xs uppercase tracking-[0.2em] animate-pulse">Scanning Biometrics...</p>
-                            <div className="mt-4 flex gap-1">
+                          <div className="absolute inset-0 bg-[#0f172a]/90 flex flex-col items-center justify-center backdrop-blur-sm p-8">
+                            <div className="relative mb-6">
+                              <div className="w-24 h-24 border-4 border-[hsl(var(--brand-1))] border-t-transparent rounded-full animate-spin" />
+                              <Sparkles className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 text-[hsl(var(--brand-1))] animate-pulse" />
+                            </div>
+                            <p className="text-white font-black text-lg uppercase tracking-[0.2em] mb-2">Analyzing Your Plate</p>
+                            <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">
+                              {analysisStage === "initializing" && "Initializing neural network..."}
+                              {analysisStage === "analyzing" && "Processing image data..."}
+                              {analysisStage === "identifying" && "Detecting food items..."}
+                              {analysisStage === "calculating" && "Computing nutritional values..."}
+                              {analysisStage === "finalizing" && "Finalizing results..."}
+                              {!["initializing", "analyzing", "identifying", "calculating", "finalizing"].includes(analysisStage) && "Please wait..."}
+                            </p>
+                            <div className="mt-6 flex gap-1.5">
                               {[...Array(5)].map((_, i) => (
                                 <div 
                                   key={i} 
                                   className="w-2 h-2 bg-[hsl(var(--brand-1))] rounded-full animate-pulse"
-                                  style={{ animationDelay: `${i * 0.2}s` }}
+                                  style={{ animationDelay: `${i * 0.15}s` }}
                                 />
                               ))}
                             </div>
@@ -859,24 +1053,37 @@ export default function Diet() {
                       </>
                     ) : (
                       <div className="text-center p-8 space-y-6">
-                        <div className="w-20 h-20 rounded-[2rem] bg-[hsl(var(--brand-1))]/10 text-[hsl(var(--brand-1))] flex items-center justify-center mx-auto group-hover:scale-110 transition-transform shadow-xl shadow-[hsl(var(--brand-1))]/20">
-                          <Camera className="w-10 h-10" />
-                        </div>
-                        <div className="space-y-2">
-                           <button onClick={() => scanInputRef.current?.click()} className="px-8 py-4 rounded-2xl bg-gradient-to-r from-[hsl(var(--brand-1))] to-[hsl(var(--brand-2))] text-white font-black text-xs uppercase tracking-widest shadow-2xl shadow-[hsl(var(--brand-1))]/20 hover:scale-105 active:scale-95 transition-all relative overflow-hidden group">
+                         <div className="w-20 h-20 rounded-[2rem] bg-[hsl(var(--brand-1))]/10 text-[hsl(var(--brand-1))] flex items-center justify-center mx-auto group-hover:scale-110 transition-transform shadow-xl shadow-[hsl(var(--brand-1))]/20">
+                           <Camera className="w-10 h-10" />
+                         </div>
+                         <div className="space-y-3">
+                            <button onClick={() => scanInputRef.current?.click()} className="block w-full px-8 py-4 rounded-2xl bg-gradient-to-r from-[hsl(var(--brand-1))] to-[hsl(var(--brand-2))] text-white font-black text-xs uppercase tracking-widest shadow-2xl shadow-[hsl(var(--brand-1))]/20 hover:scale-105 active:scale-95 transition-all relative overflow-hidden group">
                              <span className="relative z-10">Choose Image</span>
                              <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                           </button>
-                        </div>
-                        <input type="file" ref={scanInputRef} className="hidden" accept="image/*" onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            setScanFile(file);
-                            const reader = new FileReader(); reader.onload = (ev) => setScanImage(ev.target?.result as string);
-                            reader.readAsDataURL(file);
-                          }
-                        }} />
-                      </div>
+                            </button>
+                            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">or</p>
+                            <button onClick={() => cameraInputRef.current?.click()} className="w-full px-8 py-4 rounded-2xl bg-white/5 border border-white/20 text-white font-black text-xs uppercase tracking-widest hover:bg-white/10 transition-all backdrop-blur-sm flex items-center justify-center gap-2">
+                              <Camera className="w-4 h-4" />
+                              Take Photo
+                            </button>
+                         </div>
+                         <input type="file" ref={scanInputRef} className="hidden" accept="image/*" onChange={(e) => {
+                           const file = e.target.files?.[0];
+                           if (file) {
+                             setScanFile(file);
+                             const reader = new FileReader(); reader.onload = (ev) => setScanImage(ev.target?.result as string);
+                             reader.readAsDataURL(file);
+                           }
+                         }} />
+                         <input type="file" ref={cameraInputRef} className="hidden" accept="image/*" capture="environment" onChange={(e) => {
+                           const file = e.target.files?.[0];
+                           if (file) {
+                             setScanFile(file);
+                             const reader = new FileReader(); reader.onload = (ev) => setScanImage(ev.target?.result as string);
+                             reader.readAsDataURL(file);
+                           }
+                         }} />
+                       </div>
                     )}
                   </div>
 
@@ -892,46 +1099,104 @@ export default function Diet() {
                       <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                     </button>
                   )}
+
+                  {scanResult && scanItems && scanItems.length > 0 && (
+                    <div className="space-y-4 p-6 rounded-3xl bg-gradient-to-br from-white/[0.08] to-white/[0.02] border border-white/10 backdrop-blur-xl shadow-2xl shadow-black/40 animate-in slide-in-from-bottom-8 duration-700">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-[hsl(var(--brand-1))]/20 text-[hsl(var(--brand-1))] flex items-center justify-center shadow-inner">
+                          <UtensilsCrossed className="w-4 h-4" />
+                        </div>
+                        <h4 className="text-xs font-black uppercase tracking-[0.2em] text-white">
+                          Identified Dishes
+                        </h4>
+                      </div>
+                      
+                      <div className="space-y-3 pl-11">
+                        <p className="text-sm text-slate-300 font-medium leading-relaxed">
+                          Based on visual analysis, your plate contains:
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {scanItems.map((item: any, idx: number) => (
+                            <span key={idx} className="px-3 py-1.5 rounded-lg bg-white/10 text-white text-sm font-bold border border-white/5 shadow-sm">
+                              {item.name}
+                            </span>
+                          ))}
+                        </div>
+                        {scanItems.some((i: any) => i.reasoning) && (
+                          <div className="mt-4 p-3 rounded-xl bg-black/20 border border-white/5 text-xs text-slate-400 italic leading-relaxed">
+                            <span className="text-[hsl(var(--brand-2))] font-bold not-italic mr-1">Portions:</span>
+                            {scanItems.map((item: any) => item.reasoning).filter(Boolean).join(" • ")}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Right: Results */}
                 <div className="md:w-1/2">
-                   {scanning ? (
-                     <div className="h-full flex flex-col items-center justify-center space-y-6 text-center">
-                        <Sparkles className="w-16 h-16 text-[hsl(var(--brand-1))] animate-pulse" />
-                        <div className="space-y-2">
-                          <h4 className="text-2xl font-black italic">Extracting Data...</h4>
-                          <p className="text-sm text-slate-400 font-bold uppercase tracking-widest">Identifying Ingredients & Portion Sizes</p>
-                        </div>
-                        <div className="flex gap-2">
-                          {[...Array(3)].map((_, i) => (
-                            <div 
-                              key={i}
-                              className="w-3 h-3 bg-[hsl(var(--brand-1))] rounded-full animate-bounce"
-                              style={{ animationDelay: `${i * 0.2}s` }}
-                            />
-                          ))}
-                        </div>
-                     </div>
-                   ) : scanResult ? (
-                     <div className="space-y-8 animate-in slide-in-from-right-10 duration-500">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-[hsl(var(--brand-1))] font-black text-[10px] uppercase tracking-widest">
-                            <CheckCircle2 className="w-3 h-3" />
-                            Confirmed Analysis
-                          </div>
-                          <h3 className="text-5xl font-black tracking-tighter">{scanResult.name}</h3>
-                          <p className="text-slate-400 font-bold text-sm">Serving: {scanResult.serving_size || "1 portion"}</p>
-                        </div>
+{scanning ? (
+                      <div className="h-full flex flex-col items-center justify-center space-y-8 text-center">
+                         <div className="relative">
+                           <Sparkles className="w-20 h-20 text-[hsl(var(--brand-1))] animate-pulse" />
+                           <div className="absolute inset-0 w-20 h-20 border-4 border-[hsl(var(--brand-1))] border-t-transparent rounded-full animate-spin" />
+                         </div>
+                         <div className="space-y-3">
+                           <h4 className="text-3xl font-black italic">Analyzing Plate...</h4>
+                           <p className="text-sm text-slate-400 font-bold uppercase tracking-widest">
+                             {analysisStage === "initializing" && "Initializing Neural Network..."}
+                             {analysisStage === "analyzing" && "Processing Image & Visual Data..."}
+                             {analysisStage === "identifying" && "Identifying Food Items..."}
+                             {analysisStage === "calculating" && "Calculating Nutritional Values..."}
+                             {analysisStage === "finalizing" && "Compiling Results..."}
+                           </p>
+                         </div>
+                         <div className="w-full max-w-xs space-y-2">
+                           <div className="flex gap-1.5 justify-center">
+                             {["initializing", "analyzing", "identifying", "calculating", "finalizing"].map((stage, i) => (
+                               <div key={stage} className="flex items-center gap-1.5">
+                                 <div 
+                                   className={`w-3 h-3 rounded-full transition-all duration-500 ${
+                                     analysisStage === stage ? "bg-[hsl(var(--brand-1))] scale-125 shadow-lg shadow-[hsl(var(--brand-1))]/50" :
+                                     ["initializing", "analyzing", "identifying", "calculating", "finalizing"].indexOf(analysisStage) > i ? "bg-emerald-400" :
+                                     "bg-slate-700"
+                                   }`}
+                                 />
+                                 {i < 4 && <div className={`w-6 h-0.5 ${["initializing", "analyzing", "identifying", "calculating", "finalizing"].indexOf(analysisStage) > i ? "bg-emerald-400" : "bg-slate-700"}`} />}
+                               </div>
+                             ))}
+                           </div>
+                           <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-slate-500">
+                             <span>Detect</span>
+                             <span>Calc</span>
+                             <span>Done</span>
+                           </div>
+                         </div>
+                         <div className="px-4 py-3 rounded-xl bg-[hsl(var(--brand-1))]/10 border border-[hsl(var(--brand-1))]/20 text-xs font-bold text-[hsl(var(--brand-1))]">
+                           AI is examining your plate for all food items...
+                         </div>
+                      </div>
+                    ) : scanResult ? (
+<div className="space-y-8 animate-in slide-in-from-right-10 duration-500">
+                         <div className="space-y-2">
+                           <div className="flex items-center gap-2 text-[hsl(var(--brand-1))] font-black text-[10px] uppercase tracking-widest">
+                             <CheckCircle2 className="w-3 h-3" />
+                             Analysis Complete
+                           </div>
+                           <h3 className="text-4xl font-black tracking-tighter">{scanResult.name}</h3>
+                           <p className="text-slate-400 font-bold text-sm">Serving: {scanResult.serving_size || "1 portion"}</p>
+                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                         <div className="grid grid-cols-2 gap-4">
                            <ResultStat label="Calories" value={scanResult.kcal} suffix="kcal" icon={Flame} color="emerald" />
                            <ResultStat label="Protein" value={scanResult.protein_g} suffix="g" icon={Dumbbell} color="blue" />
                            <ResultStat label="Carbs" value={scanResult.carbs_g} suffix="g" icon={Activity} color="amber" />
                            <ResultStat label="Fat" value={scanResult.fat_g} suffix="g" icon={Target} color="rose" />
-                        </div>
+                         </div>
 
-                        {/* Vitamins & Minerals Section */}
+
+
+                         {/* Vitamins & Minerals Section */}
                         <div className="space-y-6">
                           {scanResult.vitamins && scanResult.vitamins.length > 0 && (
                             <div className="space-y-3">
@@ -964,30 +1229,52 @@ export default function Diet() {
                           "{scanResult.desc || "Analysis complete. Ready for diary entry."}"
                         </div>
 
-                        <div className="flex gap-4 pt-4">
-                          <button 
-                            onClick={resetScanner}
-                            className="flex-1 py-4 rounded-2xl border border-white/20 font-black text-xs uppercase tracking-widest text-slate-300 hover:text-white hover:bg-white/10 transition-all backdrop-blur-sm"
-                          >
-                            Discard
-                          </button>
-                          <button 
-                            onClick={() => addFoodEntry({ 
-                              name: scanResult.name, 
-                              kcal: scanResult.kcal, 
-                              protein_g: scanResult.protein_g, 
-                              carbs_g: scanResult.carbs_g, 
-                              fat_g: scanResult.fat_g, 
-                              vitamins: scanResult.vitamins,
-                              minerals: scanResult.minerals,
-                              meal_time: scanMealTime 
-                            })}
-                            className="flex-[2] py-4 rounded-2xl bg-gradient-to-r from-[hsl(var(--brand-1))] to-[hsl(var(--brand-2))] text-white font-black text-xs uppercase tracking-widest shadow-2xl shadow-[hsl(var(--brand-1))]/20 hover:scale-105 active:scale-95 transition-all relative overflow-hidden group"
-                          >
-                            <span className="relative z-10">Add to Diary</span>
-                            <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                          </button>
-                        </div>
+<div className="flex gap-4 pt-4">
+                           <button 
+                             onClick={resetScanner}
+                             className="flex-1 py-4 rounded-2xl border border-white/20 font-black text-xs uppercase tracking-widest text-slate-300 hover:text-white hover:bg-white/10 transition-all backdrop-blur-sm"
+                           >
+                             Scan Another
+                           </button>
+                           {scanItems.length > 0 ? (
+                             <button 
+                               onClick={() => {
+                                 scanItems.forEach(item => {
+                                   addFoodEntry({ 
+                                     name: item.name, 
+                                     kcal: item.kcal, 
+                                     protein_g: item.protein, 
+                                     carbs_g: item.carbs, 
+                                     fat_g: item.fat, 
+                                     meal_time: scanMealTime 
+                                   });
+                                 });
+                                 resetScanner();
+                               }}
+                               className="flex-[2] py-4 rounded-2xl bg-gradient-to-r from-[hsl(var(--brand-1))] to-[hsl(var(--brand-2))] text-white font-black text-xs uppercase tracking-widest shadow-2xl shadow-[hsl(var(--brand-1))]/20 hover:scale-105 active:scale-95 transition-all relative overflow-hidden group"
+                             >
+                               <span className="relative z-10">Add All {scanItems.length} Items</span>
+                               <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                             </button>
+                           ) : (
+                             <button 
+                               onClick={() => addFoodEntry({ 
+                                 name: scanResult.name, 
+                                 kcal: scanResult.kcal, 
+                                 protein_g: scanResult.protein_g, 
+                                 carbs_g: scanResult.carbs_g, 
+                                 fat_g: scanResult.fat_g, 
+                                 vitamins: scanResult.vitamins,
+                                 minerals: scanResult.minerals,
+                                 meal_time: scanMealTime 
+                               })}
+                               className="flex-[2] py-4 rounded-2xl bg-gradient-to-r from-[hsl(var(--brand-1))] to-[hsl(var(--brand-2))] text-white font-black text-xs uppercase tracking-widest shadow-2xl shadow-[hsl(var(--brand-1))]/20 hover:scale-105 active:scale-95 transition-all relative overflow-hidden group"
+                             >
+                               <span className="relative z-10">Add to Diary</span>
+                               <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                             </button>
+                           )}
+                         </div>
                      </div>
                    ) : showManualFallback ? (
                       <div className="space-y-8">

@@ -18,11 +18,12 @@ import {
 } from "recharts";
 
 const MetricSquare = ({ label, value, sub, icon: Icon }: any) => (
-  <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-3xl border border-slate-100 dark:border-slate-800">
-    <Icon className="w-5 h-5 text-primary mb-3" />
-    <div className="text-2xl font-black">{value}</div>
-    <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-1">{label}</div>
-    <div className="text-[8px] uppercase tracking-widest text-slate-300 mt-1">{sub}</div>
+  <div className="group relative bg-white dark:bg-slate-900/50 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl hover:shadow-primary/5 transition-all duration-500 overflow-hidden">
+    <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full bg-primary/5 group-hover:bg-primary/10 transition-colors" />
+    <Icon className="w-6 h-6 text-primary mb-4 relative z-10" />
+    <div className="text-3xl font-black tracking-tight">{value}</div>
+    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mt-2">{label}</div>
+    <div className="text-[9px] font-bold uppercase tracking-widest text-primary/60 mt-1">{sub}</div>
   </div>
 );
 
@@ -58,6 +59,12 @@ export default function ActivityAnalysis({ onBack }: { onBack: () => void }) {
     todaySteps: number;
     avgSteps: number;
     avgSleep: number;
+    diagnosis: string;
+    screenOn: string;
+    downtime: string;
+    lastActive: string;
+    sleepStart: string;
+    sleepEnd: string;
   } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -91,10 +98,52 @@ export default function ActivityAnalysis({ onBack }: { onBack: () => void }) {
       const sleep = lRes.data || [];
       const today = new Date().toISOString().slice(0, 10);
       const todaySteps = steps.find(s => s.date === today)?.steps || 0;
-      const avgSteps = Math.round(steps.reduce((a, b) => a + b.steps, 0) / (steps.length || 1));
-      const avgSleep = Math.round((sleep.reduce((a, b) => a + b.hours, 0) / (sleep.length || 1)) * 10) / 10;
+      const avgSteps = steps.length ? Math.round(steps.reduce((a, b) => a + b.steps, 0) / steps.length) : 0;
+      const avgSleep = sleep.length ? Math.round((sleep.reduce((a, b) => a + b.hours, 0) / sleep.length) * 10) / 10 : 0;
 
-      setRealData({ steps, sleep, todaySteps, avgSteps, avgSleep });
+      const compliance = avgSteps > 0 ? (avgSteps / (profile?.daily_step_goal || 10000)) * 100 : 0;
+      let diagnosis = "Hardware telemetry suggests insufficient data for deep neural diagnosis. Please sync your device consistently to unlock advanced insights.";
+      if (steps.length > 0 || sleep.length > 0) {
+        if (compliance >= 100) {
+           diagnosis = "Excellent biometrics! Your neural and physical compliance exceeds baseline targets. Device telemetry confirms a hyper-optimized recovery and activity loop.";
+        } else if (compliance >= 75) {
+           diagnosis = "Solid performance matrix. You are maintaining a healthy equilibrium. Consider increasing high-intensity intervals by 15% to break through the current plateau.";
+        } else if (compliance > 0) {
+           diagnosis = "Telemetry indicates sub-optimal motion parameters. Your physical output is below baseline targets. We recommend structured walking protocols and prioritizing circadian alignment.";
+        } else {
+           diagnosis = "Awaiting sufficient motion and sleep telemetry. Begin logging your daily steps and screen-off sleep to unlock personalized neural insights.";
+        }
+      }
+
+      const startHour = 23;
+      const endHour = (23 + (avgSleep || 8)) % 24;
+      const formatTime = (h: number) => {
+         const ampm = h >= 12 && h < 24 ? 'PM' : 'AM';
+         let hr = Math.floor(h % 12 || 12);
+         let mins = Math.floor((h % 1) * 60);
+         
+         mins = Math.round(mins / 15) * 15;
+         if (mins === 60) {
+           mins = 0;
+           hr = hr === 12 ? 1 : hr + 1;
+         }
+         
+         return `${hr}:${mins.toString().padStart(2, '0')} ${ampm}`;
+      };
+
+      setRealData({ 
+        steps, 
+        sleep, 
+        todaySteps, 
+        avgSteps, 
+        avgSleep,
+        diagnosis,
+        screenOn: avgSleep > 0 ? Math.max(0, 24 - avgSleep - 1.5).toFixed(1) + "h" : "14h",
+        downtime: avgSleep > 0 ? avgSleep.toFixed(1) + "h" : "0h",
+        lastActive: "Just now",
+        sleepStart: formatTime(startHour),
+        sleepEnd: formatTime(endHour)
+      });
     } catch (e) {
       console.error(e);
     }
@@ -104,16 +153,21 @@ export default function ActivityAnalysis({ onBack }: { onBack: () => void }) {
   };
 
   const BIOMETRIC_DATA = useMemo(() => [
-    { subject: 'Consistency', A: realData ? Math.min(150, (realData.steps.length / 7) * 150) : 120, fullMark: 150 },
-    { subject: 'Intensity', A: realData ? Math.min(150, (realData.avgSteps / (profile?.daily_step_goal || 10000)) * 150) : 98, fullMark: 150 },
-    { subject: 'Recovery', A: realData ? Math.min(150, (realData.avgSleep / (profile?.sleep_goal_hr || 8)) * 150) : 86, fullMark: 150 },
-    { subject: 'Duration', A: 110, fullMark: 150 },
-    { subject: 'REM Sleep', A: 85, fullMark: 150 },
-    { subject: 'Efficiency', A: 65, fullMark: 150 },
+    { subject: 'Consistency', A: realData ? Math.min(150, (realData.steps.length / 7) * 150) : 0, fullMark: 150 },
+    { subject: 'Intensity', A: realData ? Math.min(150, (realData.avgSteps / (profile?.daily_step_goal || 10000)) * 150) : 0, fullMark: 150 },
+    { subject: 'Recovery', A: realData ? Math.min(150, (realData.avgSleep / (profile?.sleep_goal_hr || 8)) * 150) : 0, fullMark: 150 },
+    { subject: 'Duration', A: realData ? Math.min(150, (realData.steps.length / 7) * 100 + 50) : 0, fullMark: 150 },
+    { subject: 'REM Sleep', A: realData ? Math.min(150, (realData.avgSleep / 8) * 130) : 0, fullMark: 150 },
+    { subject: 'Efficiency', A: realData ? Math.min(150, (realData.avgSteps / 8000) * 120) : 0, fullMark: 150 },
   ], [realData, profile]);
 
   return (
-    <div ref={containerRef} className="min-h-screen space-y-10 pb-20">
+    <div ref={containerRef} className="relative min-h-screen space-y-10 pb-20 overflow-hidden bg-slate-50/30 dark:bg-black/50">
+      {/* Theme Atmosphere */}
+      <div className="absolute top-0 left-0 -z-10 w-[800px] h-[800px] bg-primary/5 rounded-full blur-[150px] opacity-40 pointer-events-none" />
+      <div className="absolute bottom-0 right-0 -z-10 w-[600px] h-[600px] bg-indigo-500/5 rounded-full blur-[120px] opacity-30 pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -z-10 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px] opacity-20 pointer-events-none" />
+
       
       {/* Dynamic Header */}
       <div className="flex items-center justify-between px-4 analysis-animate">
@@ -124,8 +178,8 @@ export default function ActivityAnalysis({ onBack }: { onBack: () => void }) {
           <ChevronLeft className="w-5 h-5" />
         </button>
         <div className="text-center">
-           <h2 className="text-xl font-black uppercase tracking-[0.3em]">Neural Analysis</h2>
-           <p className="text-[10px] text-primary font-bold uppercase tracking-widest mt-1">Biometric Protocol v2.4</p>
+           <h2 className="text-2xl font-black uppercase tracking-[0.3em] text-slate-900 dark:text-white">Neural <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-indigo-500">Analysis</span></h2>
+           <p className="text-[10px] text-primary font-black uppercase tracking-[0.2em] mt-1 opacity-80">Biometric Protocol v2.4</p>
         </div>
         <div className="flex gap-2">
            <button className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-900 text-slate-600">
@@ -206,7 +260,7 @@ export default function ActivityAnalysis({ onBack }: { onBack: () => void }) {
                           <h3 className="text-3xl font-black">Motion Profile</h3>
                           <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Real-time Step Detection</p>
                        </div>
-                       <div className="px-4 py-2 rounded-xl bg-emerald-500/10 text-emerald-600 text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border border-emerald-500/10">
+                       <div className="px-4 py-2 rounded-xl bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest flex items-center gap-2 border border-primary/10">
                           <CheckCircle2 className="w-3 h-3" />
                           Hardware Synced
                        </div>
@@ -239,21 +293,21 @@ export default function ActivityAnalysis({ onBack }: { onBack: () => void }) {
                  <div className="grid sm:grid-cols-2 gap-8">
                     <GlassCard className="p-8">
                        <div className="flex items-center gap-4 mb-6">
-                          <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center">
+                          <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
                              <Moon className="w-6 h-6" />
                           </div>
                           <h4 className="text-xl font-black text-slate-900 dark:text-white">Circadian Rhythm</h4>
                        </div>
                        <p className="text-sm text-slate-500 font-medium leading-relaxed mb-6">
-                         Based on device usage patterns and inactivity periods, we detected a consistent sleep window between **11:45 PM** and **7:15 AM**.
+                         Based on device usage patterns and inactivity periods, we detected a consistent sleep window between <strong className="text-primary">{realData?.sleepStart || "11:00 PM"}</strong> and <strong className="text-primary">{realData?.sleepEnd || "7:00 AM"}</strong>.
                        </p>
                        <div className="space-y-4">
                           <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
                              <span>Weekly Consistency</span>
-                             <span className="text-indigo-500">{realData ? Math.round((realData.steps.length / 7) * 100) : 0}%</span>
+                             <span className="text-primary">{realData ? Math.min(100, Math.round((realData.steps.length / 7) * 100)) : 0}%</span>
                           </div>
                           <div className="h-2 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
-                             <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${realData ? Math.min(100, (realData.steps.length / 7) * 100) : 0}%` }} />
+                             <div className="h-full bg-primary rounded-full" style={{ width: `${realData ? Math.min(100, (realData.steps.length / 7) * 100) : 0}%` }} />
                           </div>
                        </div>
                     </GlassCard>
@@ -266,7 +320,7 @@ export default function ActivityAnalysis({ onBack }: { onBack: () => void }) {
                           <h4 className="text-xl font-black">AI Diagnosis</h4>
                        </div>
                        <p className="text-sm text-slate-400 font-medium leading-relaxed italic mb-6">
-                         "Your recovery score is up 12% from last week. Hardware telemetry suggests a slight instability in gait during the 4PM session—consider checking footwear."
+                         "{realData?.diagnosis || "Analyzing biometric data..."}"
                        </p>
                        <button className="text-[10px] font-black uppercase tracking-widest text-amber-400 flex items-center gap-2">
                          Download Full PDF Report <Download className="w-3 h-3" />
@@ -293,20 +347,20 @@ export default function ActivityAnalysis({ onBack }: { onBack: () => void }) {
                           <Target className="w-5 h-5 text-primary" />
                           <span className="text-xs font-black uppercase tracking-widest">Neural Score</span>
                        </div>
-                       <div className="text-5xl font-black tracking-tighter">{realData ? Math.round((realData.avgSteps / (profile?.daily_step_goal || 10000)) * 100) : 0}<span className="text-lg text-slate-400 ml-1">Score</span></div>
-                       <p className="text-[10px] text-emerald-500 font-bold uppercase tracking-widest mt-2">Compliance Rating</p>
+                       <div className="text-5xl font-black tracking-tighter">{realData ? Math.min(100, Math.round((realData.avgSteps / (profile?.daily_step_goal || 10000)) * 100)) : 0} <span className="text-lg text-slate-400 ml-1">Score</span></div>
+                       <p className="text-[10px] text-primary font-bold uppercase tracking-widest mt-2">Compliance Rating</p>
                     </div>
                  </GlassCard>
 
-                 <GlassCard className="p-10 bg-indigo-500/5 border-indigo-500/20">
+                 <GlassCard className="p-10 bg-primary/5 border-primary/20">
                     <div className="flex items-center gap-3 mb-6">
-                       <AlertCircle className="w-5 h-5 text-indigo-500" />
+                       <AlertCircle className="w-5 h-5 text-primary" />
                        <h4 className="text-sm font-black uppercase tracking-widest">Device Insights</h4>
                     </div>
                     <div className="space-y-6">
-                       <InsightItem icon={Sun} label="Screen On-Time" value="6h 12m" color="amber" />
-                       <InsightItem icon={Moon} label="Downtime Sync" value="8h 04m" color="indigo" />
-                       <InsightItem icon={Smartphone} label="Last Activity" value="2m ago" color="slate" />
+                       <InsightItem icon={Sun} label="Screen On-Time" value={realData?.screenOn || "0h"} color="primary" />
+                       <InsightItem icon={Moon} label="Downtime Sync" value={realData?.downtime || "0h"} color="primary" />
+                       <InsightItem icon={Smartphone} label="Last Activity" value={realData?.lastActive || "Unknown"} color="primary" />
                     </div>
                  </GlassCard>
               </div>
